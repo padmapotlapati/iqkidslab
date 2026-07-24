@@ -14,10 +14,10 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 const AGE_GROUPS = [
-  { range: "3–5", label: "Little Explorers", color: "from-pink-400 to-orange-400", desc: "Shapes, colors and playful memory challenges.", emoji: "🎈" },
-  { range: "6–8", label: "Curious Thinkers", color: "from-blue-400 to-cyan-400", desc: "Patterns, early logic and word play adventures.", emoji: "🚀" },
-  { range: "9–12", label: "Brain Builders", color: "from-purple-500 to-fuchsia-500", desc: "Deeper reasoning, math logic and problem quests.", emoji: "🧩" },
-  { range: "13–16", label: "Genius Squad", color: "from-emerald-400 to-teal-500", desc: "Abstract thinking, analytical and verbal skills.", emoji: "⚡" },
+  { range: "3-5", label: "Little Explorers", color: "from-pink-400 to-orange-400", desc: "Shapes, colors and playful memory challenges.", emoji: "🎈" },
+  { range: "6-8", label: "Curious Thinkers", color: "from-blue-400 to-cyan-400", desc: "Patterns, early logic and word play adventures.", emoji: "🚀" },
+  { range: "9-12", label: "Brain Builders", color: "from-purple-500 to-fuchsia-500", desc: "Deeper reasoning, math logic and problem quests.", emoji: "🧩" },
+  { range: "13-16", label: "Genius Squad", color: "from-emerald-400 to-teal-500", desc: "Abstract thinking, analytical and verbal skills.", emoji: "⚡" },
 ];
 
 const FEATURES = [
