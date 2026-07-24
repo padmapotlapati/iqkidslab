@@ -7,7 +7,7 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Play, Award, Users, Sparkles, TrendingUp, ChevronRight, Coins, Zap, Trash2 } from "lucide-react";
+import { Plus, Play, Award, Users, Sparkles, TrendingUp, ChevronRight, Coins, Zap, Trash2, Crown, Copy, Gift } from "lucide-react";
 import { toast } from "sonner";
 
 const AGE_COLORS = {
@@ -23,13 +23,15 @@ export default function Dashboard() {
   const [children, setChildren] = useState([]);
   const [stats, setStats] = useState({ total_children: 0, total_assessments: 0, recent_assessments: [] });
   const [loading, setLoading] = useState(true);
+  const [referral, setReferral] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [c, s] = await Promise.all([api.get("/children"), api.get("/dashboard/stats")]);
+        const [c, s, r] = await Promise.all([api.get("/children"), api.get("/dashboard/stats"), api.get("/referrals/me")]);
         setChildren(c.data);
         setStats(s.data);
+        setReferral(r.data);
       } catch { toast.error("Could not load dashboard."); }
       setLoading(false);
     })();
@@ -65,6 +67,37 @@ export default function Dashboard() {
             </Button>
           </Link>
         </div>
+
+        {/* Premium / credits banner */}
+        {user?.is_premium ? (
+          <div className="mt-6 rounded-3xl bg-gradient-to-r from-yellow-400 via-orange-400 to-pink-500 p-5 text-slate-900 lift-shadow flex items-center gap-4" data-testid="premium-banner">
+            <Crown className="w-10 h-10 shrink-0" />
+            <div className="flex-1">
+              <p className="font-display font-black text-lg">You&apos;re on Premium</p>
+              <p className="text-xs font-bold opacity-80">Unlimited assessments, AI reports & certificates. Expires {user.premium_expires_at ? new Date(user.premium_expires_at).toLocaleDateString() : "—"}.</p>
+            </div>
+          </div>
+        ) : (user?.assessment_credits > 0) ? (
+          <div className="mt-6 rounded-3xl glass-card p-5 flex items-center gap-4" data-testid="credits-banner">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 grid place-items-center">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="font-display font-black text-lg">{user.assessment_credits} assessment credits</p>
+              <p className="text-xs text-muted-foreground">Use these on premium AI reports & certificates.</p>
+            </div>
+            <Link to="/pricing"><Button variant="outline" className="pill-btn font-bold" data-testid="banner-upgrade-btn">Get more</Button></Link>
+          </div>
+        ) : (
+          <div className="mt-6 rounded-3xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 p-5 text-white lift-shadow flex items-center gap-4" data-testid="upgrade-banner">
+            <Sparkles className="w-10 h-10 shrink-0" />
+            <div className="flex-1">
+              <p className="font-display font-black text-lg">Unlock unlimited AI reports & certificates</p>
+              <p className="text-xs opacity-90">Try Premium at ₹99/month or grab a Pay-per-test from just ₹9.</p>
+            </div>
+            <Link to="/pricing"><Button className="pill-btn bg-white text-slate-900 hover:bg-white/90 font-black" data-testid="upgrade-cta-btn">See plans</Button></Link>
+          </div>
+        )}
 
         {/* STATS */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
@@ -131,8 +164,7 @@ export default function Dashboard() {
 
         {/* RECENT ASSESSMENTS */}
         <section className="mt-12">
-          <h2 className="text-2xl font-display font-black tracking-tight">Recent assessments</h2>
-          {stats.recent_assessments.length === 0 ? (
+          <h2 className="text-2xl font-display font-black tracking-tight">Recent assessments</h2>          {stats.recent_assessments.length === 0 ? (
             <p className="mt-3 text-muted-foreground text-sm">No assessments yet. Start one to see progress here.</p>
           ) : (
             <div className="grid md:grid-cols-2 gap-4 mt-4">
@@ -157,6 +189,32 @@ export default function Dashboard() {
             </div>
           )}
         </section>
+
+        {/* REFERRAL WIDGET */}
+        {referral && (
+          <section className="mt-12" data-testid="referral-widget">
+            <Card className="glass-card rounded-3xl border-0 p-6 flex flex-col md:flex-row items-start md:items-center gap-5 relative overflow-hidden">
+              <div className="floating-blob bg-emerald-400/30 w-40 h-40 -top-10 -right-10"></div>
+              <div className="w-14 h-14 rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-500 grid place-items-center shrink-0">
+                <Gift className="w-7 h-7 text-white" />
+              </div>
+              <div className="flex-1 relative">
+                <h3 className="font-display font-black text-lg">Share & earn</h3>
+                <p className="text-sm text-muted-foreground">Share your referral code — you and your friend BOTH get 3 free assessments after they buy.</p>
+                <div className="mt-3 flex items-center gap-2">
+                  <code className="text-lg font-black tracking-widest bg-muted rounded-2xl px-4 py-2" data-testid="referral-code">{referral.code}</code>
+                  <Button size="icon" variant="ghost" onClick={() => { navigator.clipboard.writeText(referral.code); toast.success("Copied!"); }} data-testid="copy-referral-btn" className="rounded-full">
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  <span className="font-bold">Signups:</span> {referral.referred_signups}
+                  <span className="ml-4 font-bold">Rewarded:</span> {referral.rewarded_purchases}
+                </p>
+              </div>
+            </Card>
+          </section>
+        )}
       </main>
       <Footer />
     </div>

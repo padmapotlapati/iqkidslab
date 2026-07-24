@@ -13,10 +13,35 @@ from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout, CheckoutSessionRequest,
 )
 
-# Subscription plans (server-side only)
+# Subscription plans (INR base prices, server-side only)
 PLANS = {
-    "premium_monthly": {"name": "Premium Monthly", "amount": 9.99, "currency": "usd", "interval": "month", "billing_period_days": 30},
-    "premium_yearly": {"name": "Premium Yearly", "amount": 89.99, "currency": "usd", "interval": "year", "billing_period_days": 365},
+    "pay_per_test": {
+        "name": "Pay Per Test", "amount": 9.0, "currency": "inr",
+        "mode": "one_time", "credits": 1,
+        "description": "One complete AI-powered assessment",
+    },
+    "starter_pack": {
+        "name": "Starter Pack", "amount": 39.0, "currency": "inr",
+        "mode": "one_time", "credits": 5,
+        "description": "5 assessments with AI reports & certificates",
+    },
+    "family_pack": {
+        "name": "Family Pack", "amount": 69.0, "currency": "inr",
+        "mode": "one_time", "credits": 10,
+        "description": "10 assessments across multiple children",
+    },
+    "premium_monthly": {
+        "name": "Premium Monthly", "amount": 99.0, "currency": "inr",
+        "mode": "subscription", "interval": "month",
+        "billing_period_days": 30,
+        "description": "Unlimited everything for a month",
+    },
+    "premium_yearly": {
+        "name": "Premium Yearly", "amount": 799.0, "currency": "inr",
+        "mode": "subscription", "interval": "year",
+        "billing_period_days": 365,
+        "description": "Save 33% — best value for the year",
+    },
 }
 
 
@@ -131,6 +156,7 @@ def build_router(db, require_admin, get_current_user, push_notification):
                 "user_id": user["id"],
                 "plan_id": payload.plan_id,
                 "coupon": applied_coupon or "",
+                "mode": plan.get("mode", "subscription"),
             },
         )
         session = await stripe_checkout.create_checkout_session(req)
@@ -138,6 +164,8 @@ def build_router(db, require_admin, get_current_user, push_notification):
             "session_id": session.session_id,
             "user_id": user["id"],
             "plan_id": payload.plan_id,
+            "plan_name": plan.get("name"),
+            "mode": plan.get("mode", "subscription"),
             "amount": float(amount),
             "currency": plan["currency"],
             "coupon": applied_coupon,
@@ -236,6 +264,111 @@ def build_router(db, require_admin, get_current_user, push_notification):
         async for c in db.coupons.find({}).sort("created_at", -1):
             c["id"] = str(c["_id"]); c.pop("_id", None); items.append(c)
         return items
+
+    # ============ GEO DETECTION ============
+    @router.get("/geo/detect")
+    async def geo_detect(request: Request):
+        # Cheap heuristic: use Accept-Language + CF-IPCountry (if present)
+        cf_country = request.headers.get("cf-ipcountry", "").upper()
+        if cf_country and cf_country not in ("XX", ""):
+            country = cf_country
+        else:
+            al = request.headers.get("accept-language", "").lower()
+            if "-in" in al or al.startswith("hi") or al.startswith("te") or al.startswith("ta"):
+                country = "IN"
+            else:
+                country = "OTHER"
+        return {"country": country, "is_india": country == "IN", "currency": "INR" if country == "IN" else "USD"}
+
+    # ============ REFERRALS ============
+    @router.get("/referrals/me")
+    async def my_referral(user=Depends(get_current_user)):
+        # Get or create a stable referral code for this user
+        existing = await db.referral_codes.find_one({"user_id": user["id"]})
+        if existing:
+            code = existing["code"]
+        else:
+            import secrets as _sec
+            code = "KIQ-" + _sec.token_hex(3).upper()
+            await db.referral_codes.insert_one({"user_id": user["id"], "code": code, "created_at": datetime.now(timezone.utc).isoformat()})
+        count = await db.referrals.count_documents({"referrer_id": user["id"]})
+        rewarded = await db.referrals.count_documents({"referrer_id": user["id"], "rewarded": True})
+        return {"code": code, "referred_signups": count, "rewarded_purchases": rewarded, "credits_per_referral": 3}
+
+    class ReferralApply(BaseModel):
+        code: str
+
+    @router.post("/referrals/apply")
+    async def apply_referral(payload: ReferralApply, user=Depends(get_current_user)):
+        code = payload.code.upper().strip()
+        entry = await db.referral_codes.find_one({"code": code})
+        if not entry: raise HTTPException(404, "Invalid referral code")
+        if entry["user_id"] == user["id"]: raise HTTPException(400, "Cannot use your own code")
+        existing = await db.referrals.find_one({"referee_id": user["id"]})
+        if existing: raise HTTPException(400, "You have already used a referral code")
+        await db.referrals.insert_one({
+            "referrer_id": entry["user_id"],
+            "referee_id": user["id"],
+            "code": code,
+            "rewarded": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        return {"ok": True, "message": "Referral applied! Both you and your referrer get 3 free assessments after your first purchase."}
+
+    # ============ REVENUE ANALYTICS (admin) ============
+    @router.get("/admin/revenue")
+    async def admin_revenue(admin=Depends(require_admin)):
+        now = datetime.now(timezone.utc)
+        today = now.strftime("%Y-%m-%d")
+        month_start = now.strftime("%Y-%m")
+        year_start = now.strftime("%Y")
+
+        revenue_today = 0.0
+        revenue_month = 0.0
+        revenue_year = 0.0
+        total_paid = 0
+        total_attempts = 0
+        plan_counts = {}
+        recent = []
+
+        async for p in db.payment_transactions.find({}).sort("created_at", -1):
+            total_attempts += 1
+            amt = float(p.get("amount", 0))
+            if p.get("payment_status") == "paid":
+                total_paid += 1
+                created = p.get("created_at", "")
+                if created.startswith(today): revenue_today += amt
+                if created.startswith(month_start): revenue_month += amt
+                if created.startswith(year_start): revenue_year += amt
+                pid = p.get("plan_id", "unknown")
+                plan_counts[pid] = plan_counts.get(pid, 0) + 1
+
+        # 30 recent
+        async for p in db.payment_transactions.find({}).sort("created_at", -1).limit(30):
+            p["id"] = str(p["_id"]); p.pop("_id", None); recent.append(p)
+
+        most_purchased = max(plan_counts.items(), key=lambda x: x[1]) if plan_counts else (None, 0)
+        # Free to paid conversion
+        total_parents = await db.users.count_documents({"role": "parent"})
+        paid_users_ids = set()
+        async for p in db.payment_transactions.find({"payment_status": "paid"}, {"user_id": 1}):
+            paid_users_ids.add(p.get("user_id"))
+        conversion = round((len(paid_users_ids) / total_parents * 100), 1) if total_parents else 0
+
+        return {
+            "revenue_today": round(revenue_today, 2),
+            "revenue_month": round(revenue_month, 2),
+            "revenue_year": round(revenue_year, 2),
+            "total_paid_count": total_paid,
+            "payment_success_rate": round((total_paid / total_attempts * 100), 1) if total_attempts else 0,
+            "plan_counts": plan_counts,
+            "most_purchased_plan": most_purchased[0],
+            "conversion_rate": conversion,
+            "paid_users": len(paid_users_ids),
+            "total_parents": total_parents,
+            "recent_transactions": recent,
+            "currency": "INR",
+        }
 
     # ============ ADMIN STATS ============
     @router.get("/admin/stats")
@@ -498,31 +631,48 @@ async def _audit(db, user_id: str, action: str, meta: dict):
 
 
 async def _mark_paid(db, session_id: str, record: dict):
-    """Idempotently mark payment as paid + activate subscription."""
+    """Idempotently mark payment as paid + activate subscription OR add credits."""
     existing = await db.payment_transactions.find_one({"session_id": session_id, "payment_status": "paid"})
     if existing:
         return
     plan_id = record.get("plan_id")
     plan = PLANS.get(plan_id, {})
     now = datetime.now(timezone.utc)
-    expires = now + timedelta(days=plan.get("billing_period_days", 30))
     await db.payment_transactions.update_one(
         {"session_id": session_id, "payment_status": {"$ne": "paid"}},
         {"$set": {"status": "completed", "payment_status": "paid", "updated_at": now.isoformat()}},
     )
-    # Deactivate previous active subs & create new
-    await db.subscriptions.update_many({"user_id": record["user_id"]}, {"$set": {"active": False}})
-    await db.subscriptions.insert_one({
-        "user_id": record["user_id"],
-        "plan_id": plan_id,
-        "plan_name": plan.get("name"),
-        "amount": record.get("amount"),
-        "currency": record.get("currency", "usd"),
-        "active": True,
-        "started_at": now.isoformat(),
-        "expires_at": expires.isoformat(),
-        "session_id": session_id,
-    })
+    mode = plan.get("mode", "subscription")
+    if mode == "subscription":
+        expires = now + timedelta(days=plan.get("billing_period_days", 30))
+        await db.subscriptions.update_many({"user_id": record["user_id"]}, {"$set": {"active": False}})
+        await db.subscriptions.insert_one({
+            "user_id": record["user_id"],
+            "plan_id": plan_id,
+            "plan_name": plan.get("name"),
+            "amount": record.get("amount"),
+            "currency": record.get("currency", "inr"),
+            "active": True,
+            "started_at": now.isoformat(),
+            "expires_at": expires.isoformat(),
+            "session_id": session_id,
+        })
+        title = "Welcome to Premium!"
+        body_email = f"Thank you for subscribing to {plan.get('name')}. Your access is active until {expires.strftime('%b %d, %Y')}."
+    else:
+        # One-time purchase: add assessment credits
+        credits = plan.get("credits", 0)
+        from bson import ObjectId as _OID
+        await db.users.update_one({"_id": _OID(record["user_id"])}, {"$inc": {"assessment_credits": credits}})
+        title = f"{credits} assessment{'s' if credits != 1 else ''} added!"
+        body_email = f"Your {plan.get('name')} purchase was successful. {credits} assessment credit(s) added to your account."
+    # Referral reward: give both sides a bonus if this user was referred
+    referred_by = await db.referrals.find_one({"referee_id": record["user_id"], "rewarded": False})
+    if referred_by:
+        from bson import ObjectId as _OID
+        await db.users.update_one({"_id": _OID(referred_by["referrer_id"])}, {"$inc": {"assessment_credits": 3}})
+        await db.users.update_one({"_id": _OID(record["user_id"])}, {"$inc": {"assessment_credits": 3}})
+        await db.referrals.update_one({"_id": referred_by["_id"]}, {"$set": {"rewarded": True, "rewarded_at": now.isoformat()}})
     # Bump coupon redemptions
     if record.get("coupon"):
         await db.coupons.update_one({"code": record["coupon"]}, {"$inc": {"redemptions": 1}})
@@ -530,20 +680,20 @@ async def _mark_paid(db, session_id: str, record: dict):
     await db.emails_sent.insert_one({
         "to": record.get("user_id"),
         "template": "payment_success",
-        "subject": "Payment successful — welcome to Premium!",
-        "body": f"Thank you for subscribing to {plan.get('name')}. Your access is active until {expires.strftime('%b %d, %Y')}.",
+        "subject": title,
+        "body": body_email,
         "created_at": now.isoformat(),
     })
     await db.notifications.insert_one({
         "user_id": record["user_id"], "kind": "payment_success",
-        "title": "Welcome to Premium!",
-        "body": f"Your {plan.get('name')} subscription is now active.",
+        "title": title,
+        "body": body_email,
         "link": "/dashboard",
         "read": False,
         "created_at": now.isoformat(),
     })
     await db.audit_logs.insert_one({
-        "user_id": record["user_id"], "action": "subscription_activated",
-        "meta": {"plan": plan_id, "amount": record.get("amount")},
+        "user_id": record["user_id"], "action": "purchase_completed",
+        "meta": {"plan": plan_id, "amount": record.get("amount"), "mode": mode},
         "created_at": now.isoformat(),
     })

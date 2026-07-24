@@ -30,21 +30,23 @@ export default function Admin() {
   const [coupons, setCoupons] = useState([]);
   const [audit, setAudit] = useState([]);
   const [contactMsgs, setContactMsgs] = useState([]);
+  const [revenue, setRevenue] = useState(null);
 
   useEffect(() => {
     if (!user || user.role !== "admin") return;
     (async () => {
       try {
-        const [s, u, p, c, a, m] = await Promise.all([
-          api.get("/admin/stats"),
-          api.get("/admin/users"),
-          api.get("/blog"),
-          api.get("/admin/coupons"),
-          api.get("/admin/audit-logs?limit=25"),
-          api.get("/admin/contact-messages"),
-        ]);
-        setStats(s.data); setUsers(u.data); setPosts(p.data);
-        setCoupons(c.data); setAudit(a.data); setContactMsgs(m.data);
+          const [s, u, p, c, a, m] = await Promise.all([
+            api.get("/admin/stats"),
+            api.get("/admin/users"),
+            api.get("/blog"),
+            api.get("/admin/coupons"),
+            api.get("/admin/audit-logs?limit=25"),
+            api.get("/admin/contact-messages"),
+          ]);
+          setStats(s.data); setUsers(u.data); setPosts(p.data);
+          setCoupons(c.data); setAudit(a.data); setContactMsgs(m.data);
+          const rev = await api.get("/admin/revenue"); setRevenue(rev.data);
       } catch { toast.error("Failed to load admin data"); }
     })();
   }, [user]);
@@ -127,8 +129,9 @@ export default function Admin() {
           </div>
         )}
 
-        <Tabs defaultValue="users" className="mt-8">
-          <TabsList className="rounded-full h-12 p-1 bg-muted grid grid-cols-2 md:grid-cols-6 gap-1" data-testid="admin-tabs">
+        <Tabs defaultValue="revenue" className="mt-8">
+          <TabsList className="rounded-full h-12 p-1 bg-muted grid grid-cols-2 md:grid-cols-7 gap-1" data-testid="admin-tabs">
+            <TabsTrigger value="revenue" className="rounded-full font-bold" data-testid="tab-revenue">Revenue</TabsTrigger>
             <TabsTrigger value="users" className="rounded-full font-bold" data-testid="tab-users">Users</TabsTrigger>
             <TabsTrigger value="blog" className="rounded-full font-bold" data-testid="tab-blog">Blog</TabsTrigger>
             <TabsTrigger value="coupons" className="rounded-full font-bold" data-testid="tab-coupons">Coupons</TabsTrigger>
@@ -136,6 +139,54 @@ export default function Admin() {
             <TabsTrigger value="messages" className="rounded-full font-bold" data-testid="tab-messages">Messages</TabsTrigger>
             <TabsTrigger value="audit" className="rounded-full font-bold" data-testid="tab-audit">Audit</TabsTrigger>
           </TabsList>
+
+          {/* REVENUE */}
+          <TabsContent value="revenue" className="mt-5">
+            {!revenue ? <p className="text-sm text-muted-foreground">Loading...</p> : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Stat icon={DollarSign} label="Today" value={`₹${revenue.revenue_today.toLocaleString("en-IN")}`} color="from-emerald-500 to-teal-500" testid="rev-today" />
+                  <Stat icon={DollarSign} label="This month" value={`₹${revenue.revenue_month.toLocaleString("en-IN")}`} color="from-blue-500 to-cyan-500" testid="rev-month" />
+                  <Stat icon={DollarSign} label="This year" value={`₹${revenue.revenue_year.toLocaleString("en-IN")}`} color="from-purple-500 to-pink-500" testid="rev-year" />
+                  <Stat icon={Activity} label="Success rate" value={`${revenue.payment_success_rate}%`} color="from-orange-500 to-red-500" testid="rev-success" />
+                </div>
+                <div className="grid md:grid-cols-2 gap-5 mt-5">
+                  <Card className="glass-card rounded-3xl border-0 p-6" data-testid="rev-plan-mix">
+                    <h3 className="font-display font-black text-lg">Plan mix</h3>
+                    <div className="mt-3 space-y-2 text-sm">
+                      {Object.entries(revenue.plan_counts || {}).length === 0 ? <p className="text-muted-foreground">No purchases yet.</p> :
+                        Object.entries(revenue.plan_counts).map(([k, v]) => (
+                          <div key={k} className="flex justify-between border-b border-border/40 py-1">
+                            <span className="font-bold">{k.replace(/_/g, " ")}</span>
+                            <Badge variant="secondary" className="rounded-full font-bold">{v} sold</Badge>
+                          </div>
+                        ))}
+                    </div>
+                    <div className="mt-4 text-xs text-muted-foreground">
+                      <span className="font-bold">Most purchased:</span> {revenue.most_purchased_plan?.replace(/_/g, " ") || "—"}
+                      <span className="ml-4 font-bold">Free → Paid:</span> {revenue.conversion_rate}%
+                      <span className="ml-4 font-bold">Paid users:</span> {revenue.paid_users}/{revenue.total_parents}
+                    </div>
+                  </Card>
+                  <Card className="glass-card rounded-3xl border-0 p-6" data-testid="rev-recent">
+                    <h3 className="font-display font-black text-lg">Recent transactions</h3>
+                    <div className="mt-3 max-h-72 overflow-y-auto text-sm space-y-2">
+                      {revenue.recent_transactions.length === 0 && <p className="text-muted-foreground">No transactions yet.</p>}
+                      {revenue.recent_transactions.map(t => (
+                        <div key={t.id} className="flex justify-between border-b border-border/40 py-1" data-testid={`rev-tx-${t.id}`}>
+                          <div>
+                            <p className="font-bold">₹{t.amount} · {t.plan_name || t.plan_id}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString()}</p>
+                          </div>
+                          <Badge className={`rounded-full font-bold ${t.payment_status === "paid" ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-0" : "bg-muted text-muted-foreground"}`}>{t.payment_status}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </div>
+              </>
+            )}
+          </TabsContent>
 
           {/* USERS */}
           <TabsContent value="users" className="mt-5">

@@ -232,6 +232,14 @@ async def logout(response: Response):
 
 @api_router.get("/auth/me")
 async def me(user=Depends(get_current_user)):
+    # Include assessment_credits + active subscription flag
+    raw = await db.users.find_one({"_id": ObjectId(user["id"])})
+    user["assessment_credits"] = int((raw or {}).get("assessment_credits", 0))
+    sub = await db.subscriptions.find_one({"user_id": user["id"], "active": True})
+    user["is_premium"] = bool(sub)
+    if sub:
+        user["premium_plan"] = sub.get("plan_id")
+        user["premium_expires_at"] = sub.get("expires_at")
     return user
 
 

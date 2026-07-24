@@ -1,0 +1,79 @@
+{
+  "summary": "Tested INR pricing revamp (5 plans + credits + referrals + geo + admin revenue). Backend: 63/65 pytest pass (29/31 test_saas.py + 34/34 backend_test.py). 2 CRITICAL failures: Stripe INR minimum ₹42 (must convert to $0.50) is violated by pay_per_test (₹9) and starter_pack (₹39) — POST /api/payments/checkout returns raw 500 Internal Server Error instead of graceful 400. Also the error surfaces to end users as an unhandled exception (see backend logs: 'Failed to create checkout session: The Checkout Session's total amount must convert to at least 50 cents. ₹39.00 converts to approximately $0.40'). All other endpoints work: /api/plans returns 5 INR plans with correct credits/mode/interval, /api/geo/detect returns is_india=true for hi-* / en-in accept-language, /api/referrals/me returns stable KIQ-XXXXXX code, /api/referrals/apply enforces own-code/duplicate rules, /api/admin/revenue returns correct shape with currency=INR + parent gets 403, /api/auth/me includes assessment_credits + is_premium, coupon LAUNCH20 discounts 99->79.2 correctly, duplicate coupon returns 400, /api/payments/checkout for family_pack/premium_monthly/premium_yearly all return valid checkout_url + insert payment_transaction with mode + inr currency, _mark_paid credits flow works (+5 credits for starter_pack), _mark_paid subscription flow marks previous inactive + new active, referral reward flow gives +3 to both sides on referee's first purchase. Frontend E2E: /pricing renders all 5 plan cards + hero Premium Monthly (golden border, MOST POPULAR/BEST VALUE, ₹99 default, currency toggle ₹/$ works, coupon LAUNCH20 applies 20% -> ₹79). /dashboard for parent shows upgrade banner + referral widget with KIQ-155AE8 code. /admin default tab is Revenue with 4 KPIs (Today ₹1,093 / This month / This year / Success rate 41.2%) + Plan mix + Recent transactions in INR.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/payments/checkout {plan_id: pay_per_test}",
+        "issue": "Returns 500 Internal Server Error. Stripe rejects any INR amount below ₹42 (must convert to $0.50 minimum). Pay Per Test is ₹9 and Starter Pack is ₹39, both below Stripe's INR floor. Repro: login as parent, POST /api/payments/checkout with plan_id=pay_per_test => 500. Backend log: 'stripe._error.InvalidRequestError: The Checkout Session's total amount must convert to at least 50 cents. ₹9.00 converts to approximately $0.09'. Fix options: (a) raise price of pay_per_test to >=₹49 & starter_pack to >=₹49 for real Stripe processing, OR (b) wrap CheckoutError in try/except in saas_router.create_checkout and return HTTPException(400, 'Amount below Stripe INR minimum'). Currently the raw exception bubbles up, breaking UX.",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "POST /api/payments/checkout {plan_id: starter_pack}",
+        "issue": "Same as pay_per_test — ₹39 also fails Stripe INR minimum. Returns 500 rather than 400. Two of 4 paid plans literally cannot be purchased via Stripe in INR.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "POST /api/payments/checkout",
+        "issue": "No try/except around stripe_checkout.create_checkout_session() call — any Stripe error (amount too small, invalid key, network) returns raw 500 with Python traceback instead of a user-friendly HTTP 400/402 with 'detail' field. Frontend Payment.jsx cannot show a useful error toast."
+      },
+      {
+        "endpoint": "GET /api/admin/stats (top revenue KPI)",
+        "issue": "Admin dashboard header shows Revenue as '$1093.00' (USD $ prefix) while Revenue tab correctly shows '₹1,093' INR. Inconsistent currency symbol between /admin/stats.revenue_total and /admin/revenue.revenue_year. Fix Admin.jsx header card to use ₹ or make /admin/stats also carry a currency field."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Pricing page — coupon applies to ALL cards, not just Premium hero",
+        "issue": "Screenshot shows LAUNCH20 discount applied to Pay Per Test (₹7), Starter Pack (₹31), Family Pack (₹55), Premium Yearly (₹639), Premium Monthly (₹79) — every card. Review request stated: 'applies 20% discount to displayed price on premium card' only. If intentional (site-wide promo behavior), OK; if not, restrict Pricing.jsx displayAmount(plan) discount to premium hero only.",
+        "affected_selectors": ["[data-testid='plan-pay_per_test']", "[data-testid='plan-starter_pack']", "[data-testid='plan-family_pack']", "[data-testid='plan-premium_yearly']"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Admin dashboard header",
+        "issues": ["Top-right REVENUE KPI card shows '$1093.00' (USD) but Revenue tab below shows '₹1,093' (INR). Should be consistent — user context is INR-first."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_saas.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_saas.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Fix Stripe INR minimum issue for pay_per_test (₹9) & starter_pack (₹39). Either raise prices >= ₹49 OR wrap create_checkout in try/except returning HTTPException(400,'Amount below payment processor minimum') so frontend can show a proper toast instead of a bare 500.",
+    "Wrap stripe_checkout.create_checkout_session in try/except in saas_router.create_checkout and translate CheckoutError → HTTPException(400).",
+    "Make Admin header 'Revenue' KPI display INR (₹) to match the Revenue tab and pricing model.",
+    "Verify coupon behavior on Pricing.jsx — should the discount apply to all plan cards or only the Premium hero card? If only hero, gate the discount computation to premium_monthly card only."
+  ],
+  "critical_code_review_comments": [
+    "saas_router.create_checkout has no try/except around Stripe SDK call — any Stripe exception becomes a raw HTTP 500. Add: try: session = await stripe_checkout.create_checkout_session(req) except CheckoutError as e: raise HTTPException(400, str(e)).",
+    "Business validation: 4 out of 5 paid plans in INR (pay_per_test ₹9, starter_pack ₹39) are UNPROCESSABLE by Stripe (INR minimum ≈ ₹42 for $0.50 conversion). Recommend raising floor to ₹49 for pay_per_test and ₹99 for starter_pack, OR switching to a Payments provider with lower INR minimum for micro-transactions.",
+    "assessment_credits gating is P1 backlog (per task note) — free users with 0 credits currently unblocked from /sessions/start. This will need enforcement soon.",
+    "Referral code format is KIQ-XXXXXX (6 hex uppercase from token_hex(3).upper()). Good randomness (16.7M keyspace) but no collision retry on referral_codes insert if two users happen to get the same code simultaneously — race condition possible under load. Add a unique index on referral_codes.code with retry loop.",
+    "GET /api/geo/detect uses only Accept-Language and cf-ipcountry header. Real geo requires an IP lookup (MaxMind, etc.). Kubernetes ingress typically strips cf-ipcountry so only Accept-Language works. Acceptable heuristic but note it's not reliable for US-based Indian users on English browsers.",
+    "Rate limiting middleware is still declared but no decorators applied to /auth/login. Brute-force still not enforced (carryover from iteration 3).",
+    "Admin.jsx top KPI revenue and Revenue tab use different data sources with different currencies — consolidate.",
+    "Pricing.jsx applies coupon discount to ALL displayed prices via a global multiplier — this may leak the discount visually to plans that aren't actually discounted at checkout, or vice-versa if backend applies it to some plans differently.",
+    "The USD_PER_INR = 0.012 constant is hardcoded in frontend; forex rates change. Consider fetching from backend /api/geo/detect."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_saas.py"
+  ],
+  "success_rate": {
+    "backend": "97% (63/65 total; 2 checkout-Stripe-minimum failures both critical business impact)",
+    "frontend": "95% for tested flows (pricing, coupon, dashboard referral widget, admin revenue default tab all render — minor issues with coupon-applies-to-all-cards and admin header USD symbol)"
+  },
+  "test_credentials": "Admin: admin@kidsiqtest.com / Admin@12345. Parent: parent@test.com / Parent@12345. Both seeded via server startup. Multiple TEST_ users created via _register() fixture across mark-paid flow tests — left in DB by design (no teardown for TEST_saas_* prefix users).",
+  "seed_data_creation": "Coupon LAUNCH20 seeded (idempotent). Test payment_transactions rows for pay_per_test (paid), premium_monthly (pending), premium_yearly (paid) inserted by mark-paid flow tests. Referral codes KIQ-* auto-created for every fresh_parent. Test admin revenue now shows ₹1,093 / 41.2% success / 2 sold pay_per_test & premium_monthly.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Backend suites: /app/backend/tests/backend_test.py (Part 1/2 - 34 tests) + /app/backend/tests/test_saas.py (Part 3 SaaS INR + credits + referrals + geo - 31 tests). Both use REACT_APP_BACKEND_URL. Run: `cd /app && python -m pytest backend/tests/ -v`. STRIPE INR MINIMUM: ~₹42 (=$0.50). Plans below this fail. mark-paid flow tests directly touch MongoDB via motor to simulate Stripe webhook (needed because Stripe hosted-checkout can't be driven headlessly). Referral reward: on first _mark_paid call for a referee, both referrer & referee receive +3 assessment_credits and referrals.rewarded=true (verified). Frontend Pricing.jsx currency toggle works, coupon applies globally to all cards (may be a bug per review request). Admin Revenue tab is default with KPIs in INR; note the top header 'REVENUE' KPI still shows USD $ prefix (inconsistency).",
+  "rca_of_issue": "Bug 1 RCA (pay_per_test/starter_pack 500 on checkout): Root cause is Stripe's INR minimum-amount policy: any INR amount that converts to less than $0.50 USD is rejected with error_code=amount_too_small. Since USD_PER_INR ≈ 0.012, the practical INR minimum is ceil(0.50/0.012) ≈ ₹42. Both pay_per_test (₹9 -> $0.11) and starter_pack (₹39 -> $0.47) violate this. saas_router.create_checkout does not wrap the Stripe SDK call in try/except, so the CheckoutError propagates as HTTP 500 with Python traceback. Fix: (1) update PLANS to price pay_per_test at ₹49 and starter_pack at ₹99 (or absorb into 'family_pack' tier), AND (2) wrap create_checkout_session in try/except to translate CheckoutError to HTTPException(400, detail=str(e)). Bug 2 RCA (admin header USD vs Revenue tab INR): Admin.jsx pulls revenue_total from /admin/stats which was authored in Part 3 (USD era) and never migrated to INR. Fix: either update Admin.jsx header card to render '₹' prefix and pull from /admin/revenue.revenue_year, or add `currency` field to /admin/stats response."
+}

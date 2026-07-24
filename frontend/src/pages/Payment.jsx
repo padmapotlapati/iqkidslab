@@ -62,8 +62,10 @@ export function PaymentSuccess() {
               <div className="w-20 h-20 rounded-3xl mx-auto bg-gradient-to-br from-emerald-500 to-teal-500 grid place-items-center animate-float">
                 <CheckCircle2 className="w-11 h-11 text-white" />
               </div>
-              <h1 className="mt-6 text-3xl font-display font-black" data-testid="payment-success-title">Welcome to Premium!</h1>
-              <p className="text-muted-foreground mt-2">Your ${state.data.amount} {state.data.plan_id?.includes("yearly") ? "yearly" : "monthly"} subscription is active.</p>
+              <h1 className="mt-6 text-3xl font-display font-black" data-testid="payment-success-title">Payment successful!</h1>
+              <p className="text-muted-foreground mt-2">
+                {state.data.currency === "inr" ? "₹" : "$"}{state.data.amount} — {state.data.plan_id?.replace(/_/g, " ")}
+              </p>
               <Link to="/dashboard" className="inline-block mt-6" data-testid="payment-success-cta">
                 <Button className="pill-btn h-12 px-8 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-black">
                   <Sparkles className="w-4 h-4 mr-2" /> Go to dashboard <ChevronRight className="w-4 h-4 ml-1" />
