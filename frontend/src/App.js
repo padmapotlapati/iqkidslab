@@ -12,6 +12,10 @@ import CreateChild from "@/pages/CreateChild";
 import ChildProfile from "@/pages/ChildProfile";
 import Assessment from "@/pages/Assessment";
 import Report from "@/pages/Report";
+import BrainGames from "@/pages/BrainGames";
+import BrainGamePlay from "@/pages/BrainGamePlay";
+import Certificates from "@/pages/Certificates";
+import ProgressPage from "@/pages/ProgressPage";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -34,6 +38,10 @@ function App() {
             <Route path="/dashboard/child/:childId" element={<Protected><ChildProfile /></Protected>} />
             <Route path="/dashboard/child/:childId/assessment" element={<Protected><Assessment /></Protected>} />
             <Route path="/dashboard/report/:assessmentId" element={<Protected><Report /></Protected>} />
+            <Route path="/dashboard/games" element={<Protected><BrainGames /></Protected>} />
+            <Route path="/dashboard/games/:gameKey" element={<Protected><BrainGamePlay /></Protected>} />
+            <Route path="/dashboard/certificates" element={<Protected><Certificates /></Protected>} />
+            <Route path="/dashboard/progress" element={<Protected><ProgressPage /></Protected>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <Toaster position="top-right" richColors />

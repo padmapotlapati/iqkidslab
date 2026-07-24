@@ -1,0 +1,238 @@
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
+import api from "@/lib/api";
+import Navbar from "@/components/Navbar";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
+import Confetti from "@/components/Confetti";
+import { Timer, RotateCcw, ChevronLeft, Trophy, Zap } from "lucide-react";
+
+// -------- Individual Games --------
+
+function MemoryMatch({ onFinish }) {
+  const emojis = useMemo(() => ["🎈","🚀","🧩","🎨","⭐","🌈","🎯","🎮"], []);
+  const [cards, setCards] = useState([]);
+  const [flipped, setFlipped] = useState([]);
+  const [matched, setMatched] = useState([]);
+  const [moves, setMoves] = useState(0);
+  const [start] = useState(Date.now());
+
+  useEffect(() => {
+    const doubled = [...emojis, ...emojis].map((e, i) => ({ id: i, emoji: e }));
+    setCards(doubled.sort(() => Math.random() - 0.5));
+  }, [emojis]);
+
+  useEffect(() => {
+    if (flipped.length === 2) {
+      const [a, b] = flipped;
+      if (cards[a].emoji === cards[b].emoji) {
+        setMatched(m => [...m, a, b]);
+        setFlipped([]);
+      } else {
+        const t = setTimeout(() => setFlipped([]), 700);
+        return () => clearTimeout(t);
+      }
+      setMoves(m => m + 1);
+    }
+  }, [flipped, cards]);
+
+  useEffect(() => {
+    if (matched.length === cards.length && cards.length > 0) {
+      const duration = Math.round((Date.now() - start) / 1000);
+      const score = Math.max(20, 200 - moves * 5 - duration);
+      setTimeout(() => onFinish({ score, duration, moves }), 400);
+    }
+  }, [matched, cards, moves, start, onFinish]);
+
+  const flip = (i) => {
+    if (flipped.length === 2 || flipped.includes(i) || matched.includes(i)) return;
+    setFlipped(f => [...f, i]);
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <span className="text-sm font-bold text-muted-foreground">Moves: <span className="text-foreground" data-testid="mm-moves">{moves}</span></span>
+        <span className="text-sm font-bold text-muted-foreground">Matched: {matched.length / 2} / {cards.length / 2}</span>
+      </div>
+      <div className="grid grid-cols-4 gap-3">
+        {cards.map((c, i) => {
+          const isShown = flipped.includes(i) || matched.includes(i);
+          return (
+            <button key={c.id} onClick={() => flip(i)} data-testid={`mm-card-${i}`}
+              className={`aspect-square rounded-2xl text-4xl grid place-items-center font-black transition-all
+                ${isShown ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white scale-105" : "bg-muted hover:bg-muted-foreground/20"}`}>
+              {isShown ? c.emoji : "?"}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ReactionTap({ onFinish }) {
+  const [state, setState] = useState("waiting"); // waiting|ready|clicked|too-early
+  const [startAt, setStartAt] = useState(0);
+  const [results, setResults] = useState([]);
+  const round = results.length + 1;
+
+  const begin = () => {
+    setState("waiting");
+    const delay = 1500 + Math.random() * 2500;
+    const t = setTimeout(() => { setState("ready"); setStartAt(Date.now()); }, delay);
+    return () => clearTimeout(t);
+  };
+
+  useEffect(() => { const cleanup = begin(); return cleanup; }, []); // eslint-disable-line
+
+  const handleClick = () => {
+    if (state === "waiting") { setState("too-early"); setTimeout(begin, 1200); return; }
+    if (state === "ready") {
+      const ms = Date.now() - startAt;
+      const newRes = [...results, ms];
+      setResults(newRes);
+      if (newRes.length >= 5) {
+        const avg = Math.round(newRes.reduce((a,b)=>a+b,0) / newRes.length);
+        const score = Math.max(20, 400 - Math.round(avg / 5));
+        setTimeout(() => onFinish({ score, duration: 0, avg_ms: avg }), 300);
+      } else {
+        setTimeout(begin, 800);
+      }
+    }
+  };
+
+  const color = state === "ready" ? "from-emerald-500 to-green-500" : state === "too-early" ? "from-red-500 to-orange-500" : "from-slate-400 to-slate-500";
+  const label = state === "ready" ? "TAP NOW!" : state === "too-early" ? "Too early! Restarting..." : "Wait for green...";
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <span className="text-sm font-bold text-muted-foreground">Round: <span className="text-foreground" data-testid="rt-round">{round}</span> / 5</span>
+        {results.length > 0 && <span className="text-sm font-bold text-muted-foreground">Last: {results[results.length - 1]}ms</span>}
+      </div>
+      <button onClick={handleClick} data-testid="rt-tap-area"
+        className={`w-full h-64 rounded-3xl bg-gradient-to-br ${color} text-white text-3xl font-display font-black shadow-xl transition-all active:scale-95`}>
+        {label}
+      </button>
+      <p className="text-xs text-muted-foreground mt-3 text-center">When the box turns green, tap as fast as you can.</p>
+    </div>
+  );
+}
+
+function FocusFind({ onFinish }) {
+  const [round, setRound] = useState(0);
+  const [score, setScore] = useState(0);
+  const [start] = useState(Date.now());
+  const items = ["🍎","🍎","🍎","🍎","🍎","🍎","🍎","🍏","🍎","🍎","🍎","🍎"];
+
+  const options = useMemo(() => {
+    const arr = [...items];
+    // random position for odd one out already set
+    return arr.sort(() => Math.random() - 0.5);
+  }, [round]); // eslint-disable-line
+
+  const oddIndex = options.findIndex(x => x === "🍏");
+
+  const pick = (i) => {
+    const isCorrect = i === oddIndex;
+    if (isCorrect) setScore(s => s + 20);
+    if (round + 1 >= 5) {
+      const duration = Math.round((Date.now() - start) / 1000);
+      const final = score + (isCorrect ? 20 : 0);
+      setTimeout(() => onFinish({ score: final, duration }), 200);
+    } else {
+      setRound(r => r + 1);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <span className="text-sm font-bold text-muted-foreground">Round: <span className="text-foreground" data-testid="ff-round">{round + 1}</span> / 5</span>
+        <span className="text-sm font-bold text-muted-foreground">Score: {score}</span>
+      </div>
+      <p className="text-center font-bold mb-4">Tap the one that&apos;s different!</p>
+      <div className="grid grid-cols-4 gap-3">
+        {options.map((emoji, i) => (
+          <button key={i} onClick={() => pick(i)} data-testid={`ff-item-${i}`}
+            className="aspect-square rounded-2xl text-4xl grid place-items-center bg-muted hover:bg-muted-foreground/20 transition-all">
+            {emoji}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const GAMES = {
+  memory_match: { name: "Memory Match", Component: MemoryMatch, color: "from-pink-500 to-rose-500" },
+  reaction_tap: { name: "Reaction Tap", Component: ReactionTap, color: "from-orange-500 to-red-500" },
+  focus_find: { name: "Focus Find", Component: FocusFind, color: "from-blue-500 to-cyan-500" },
+};
+
+export default function BrainGamePlay() {
+  const { gameKey } = useParams();
+  const [sp] = useSearchParams();
+  const navigate = useNavigate();
+  const childId = sp.get("child");
+  const [done, setDone] = useState(null);
+  const [confetti, setConfetti] = useState(false);
+  const [replayKey, setReplayKey] = useState(0);
+
+  const game = GAMES[gameKey];
+  if (!game) return <div className="min-h-screen"><Navbar /><div className="text-center mt-40 text-muted-foreground">Game not found</div></div>;
+
+  const handleFinish = async (result) => {
+    setDone(result);
+    setConfetti(true);
+    try {
+      await api.post("/games/score", {
+        child_id: childId, game_key: gameKey,
+        score: result.score, duration_seconds: result.duration || 0, metadata: result,
+      });
+    } catch { toast.error("Could not save score"); }
+  };
+
+  const restart = () => { setDone(null); setConfetti(false); setReplayKey(k => k + 1); };
+
+  return (
+    <div className="min-h-screen relative overflow-hidden">
+      <Navbar />
+      <Confetti trigger={confetti} />
+      <div className="floating-blob bg-purple-400/30 w-72 h-72 -top-10 -left-16"></div>
+      <div className="floating-blob bg-pink-400/30 w-72 h-72 bottom-0 -right-16"></div>
+
+      <main className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 py-8 relative">
+        <button onClick={() => navigate("/dashboard/games")} data-testid="game-back-btn" className="text-sm font-bold text-muted-foreground hover:text-foreground flex items-center gap-1 mb-4">
+          <ChevronLeft className="w-4 h-4" /> Back to games
+        </button>
+        <div className={`rounded-[2rem] p-6 sm:p-8 bg-gradient-to-br ${game.color} text-white lift-shadow relative overflow-hidden`}>
+          <div className="floating-blob bg-white/20 w-40 h-40 -top-10 -right-10"></div>
+          <h1 className="text-3xl font-display font-black relative" data-testid="game-title">{game.name}</h1>
+        </div>
+
+        <Card className="glass-card rounded-3xl border-0 p-6 sm:p-8 mt-5" data-testid="game-play-area">
+          {done ? (
+            <div className="text-center animate-pop">
+              <div className="w-20 h-20 rounded-3xl mx-auto bg-gradient-to-br from-yellow-300 to-orange-400 grid place-items-center animate-float">
+                <Trophy className="w-9 h-9 text-white" />
+              </div>
+              <h2 className="text-3xl font-display font-black mt-5">You scored {done.score}!</h2>
+              <p className="text-muted-foreground mt-1 text-sm">Great job — XP added to your profile.</p>
+              <div className="mt-6 flex gap-3 justify-center">
+                <Button onClick={restart} className="pill-btn bg-gradient-to-r from-blue-500 to-purple-600 text-white font-black" data-testid="game-play-again-btn">
+                  <RotateCcw className="w-4 h-4 mr-2" /> Play again
+                </Button>
+                <Link to="/dashboard/games"><Button variant="outline" className="pill-btn font-bold">Back to games</Button></Link>
+              </div>
+            </div>
+          ) : (
+            <game.Component key={replayKey} onFinish={handleFinish} />
+          )}
+        </Card>
+      </main>
+    </div>
+  );
+}
