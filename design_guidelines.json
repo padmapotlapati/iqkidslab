@@ -1,0 +1,92 @@
+{
+  "theme": "light",
+  "typography": {
+    "headings": "Nunito",
+    "body": "Quicksand",
+    "rules": [
+      "Use bold or heavy weights for headings to create a playful and engaging feel.",
+      "Never use Inter or generic sans for headings.",
+      "Maintain tight letter spacing (tracking-tight) for large text (Size > 32px).",
+      "Ensure hierarchy jump between heading and subheading does not exceed 2 Tailwind steps."
+    ]
+  },
+  "colors": {
+    "primary": "#3B82F6",
+    "secondary": "#8B5CF6",
+    "accents": [
+      "#F59E0B",
+      "#10B981",
+      "#EC4899",
+      "#FBBF24"
+    ],
+    "backgrounds": {
+      "light": "#F8FAFC",
+      "dark": "#0F172A",
+      "card_light": "#FFFFFF",
+      "card_dark": "#1E293B"
+    },
+    "rules": [
+      "Use the VIBRANT PLAY archetype (Youth Coaching) with bright, friendly colors.",
+      "Ensure high contrast for text against all colored backgrounds.",
+      "Never use pure #000000 or #808080. Tint neutrals with blue or orange.",
+      "Do NOT use teal green or teal blue (#1B93A4) for dashboards."
+    ]
+  },
+  "visual_enhancers": {
+    "glassmorphism": "Use backdrop-blur-xl (or 2xl) and semi-transparent backgrounds for floating navigation and overlays. Must include a delicate 1px inner stroke.",
+    "shadows": "Use soft, diffuse ambient shadows to create a tactile, touchable feel (e.g., shadow-[0_8px_32px_rgba(0,0,0,0.12)]).",
+    "borders": "Apply generous rounded corners everywhere (e.g., rounded-2xl or rounded-3xl). Avoid sharp edges entirely.",
+    "gradients": "Use smooth, vibrant gradients sparingly for hero sections and gamified elements, but avoid full-screen generic gradients."
+  },
+  "layouts": {
+    "marketing": "Use Bento grids for the landing page with wide gaps (gap-8 to gap-12). Prioritize asymmetry and breathing room.",
+    "dashboard": "Use a high-density but playful grid for the Parent Dashboard. Ensure full-height alignment on children. Avoid jagged bottoms.",
+    "spacing": "Use 2-3x more spacing than typical designs (p-6, p-8, p-12). Containers with borders must have internal padding.",
+    "rules": [
+      "Mobile-first responsive grids always.",
+      "Grid items MUST be direct children of grid containers.",
+      "Optical alignment is prioritized over geometrical alignment (e.g., round icons next to text)."
+    ]
+  },
+  "motion": {
+    "rules": [
+      "Integrate Framer Motion for micro-interactions: bouncing buttons, hover lifts (-translate-y-1), and staggered list entrances.",
+      "Implement Lottie animations for rewards like confetti drops and animated brain characters.",
+      "Always respect prefers-reduced-motion for accessibility.",
+      "Do NOT apply universal transitions (e.g., transition: all). Add transitions for specific properties to prevent breaking transforms."
+    ]
+  },
+  "accessibility": {
+    "rules": [
+      "Normal text must meet 4.5:1 contrast ratio, large text 3:1.",
+      "Do NOT use completely transparent backgrounds for headers, overlays, or dropdowns. Always use a solid or glassmorphism background.",
+      "All interactive elements MUST explicitly set text color on hover and have high-contrast focus states.",
+      "All interactive and key informational elements MUST include a data-testid attribute in kebab-case."
+    ]
+  },
+  "media": {
+    "image_urls": {
+      "hero_parent_child_tablet": "https://images.pexels.com/photos/4908506/pexels-photo-4908506.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "studying_child": "https://images.unsplash.com/photo-1624272949900-9ae4c56397e8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA4Mzl8MHwxfHNlYXJjaHwxfHxoYXBweSUyMGNoaWxkJTIwdGFibGV0fGVufDB8fHx8MTc4NDg4OTg0Nnww&ixlib=rb-4.1.0&q=85",
+      "parent_child_studying": "https://images.pexels.com/photos/8054845/pexels-photo-8054845.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "reward_badge": "https://images.pexels.com/photos/6532373/pexels-photo-6532373.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "abstract_colorful_bg": "https://images.pexels.com/photos/29579755/pexels-photo-29579755.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+    }
+  },
+  "component_instructions": {
+    "buttons": "Design big, tactile, pill-shaped buttons with strong visual depth and clear press states (Duolingo-style).",
+    "cards": "Use rounded corners with soft UI components, engaging icons, and playful, vibrant accents.",
+    "progress_bars": "Integrate visible progress tracking (bars, rings) with bright colors and milestones to sustain motivation.",
+    "forms_and_inputs": "Use heavily customized Shadcn components (Input, Select) rather than native HTML tags. Avoid the 'default Vercel' look.",
+    "toast": "Use sonner for toast notifications and style them playfully."
+  },
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Prioritize building for .js files since the environment is JavaScript, not TypeScript (.tsx).",
+    "Do NOT use HTML-based components for advanced user interactions (e.g., use Shadcn for dropdowns, calendars, and dialogs).",
+    "Avoid generic 'AI slop' aesthetics. Do not use simplistic gradients or uniform styling. Create depth through layered design elements.",
+    "Never center align the root app container (do not add .App { text-align: center; } in CSS). Left-align dense content.",
+    "Never use AI assistant Emoji characters (🤖🧠💭💡🔮🎯) for icons. Use lucide-react or Phosphor Icons.",
+    "Include data-testid on every interactive element (e.g., data-testid='login-submit-button').",
+    "If the content scrolls under the header, use Crystal Glass style; if it cuts off, use a Solid Background."
+  ]
+}
