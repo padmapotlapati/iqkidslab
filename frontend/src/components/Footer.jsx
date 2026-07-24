@@ -29,16 +29,20 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="#features" className="hover:text-foreground">Features</a></li>
               <li><a href="#benefits" className="hover:text-foreground">Benefits</a></li>
+              <li><Link to="/pricing" className="hover:text-foreground">Pricing</Link></li>
+              <li><Link to="/blog" className="hover:text-foreground">Blog</Link></li>
               <li><Link to="/dashboard" className="hover:text-foreground">Dashboard</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="font-display font-bold mb-3">Company</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground">Privacy</a></li>
-              <li><a href="#" className="hover:text-foreground">Terms</a></li>
-              <li><a href="#" className="hover:text-foreground">Contact</a></li>
-              <li><a href="#" className="hover:text-foreground">Blog</a></li>
+              <li><Link to="/about" className="hover:text-foreground">About</Link></li>
+              <li><Link to="/contact" className="hover:text-foreground">Contact</Link></li>
+              <li><Link to="/privacy" className="hover:text-foreground">Privacy</Link></li>
+              <li><Link to="/terms" className="hover:text-foreground">Terms</Link></li>
+              <li><Link to="/cookies" className="hover:text-foreground">Cookies</Link></li>
+              <li><Link to="/disclaimer" className="hover:text-foreground">Disclaimer</Link></li>
             </ul>
           </div>
         </div>

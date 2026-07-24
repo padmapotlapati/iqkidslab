@@ -12,9 +12,10 @@ import { Badge } from "@/components/ui/badge";
 
 const publicLinks = [
   { to: "/", label: "Home" },
-  { to: "/#features", label: "Features" },
-  { to: "/#how", label: "How it Works" },
-  { to: "/#faq", label: "FAQ" },
+  { to: "/pricing", label: "Pricing" },
+  { to: "/blog", label: "Blog" },
+  { to: "/about", label: "About" },
+  { to: "/contact", label: "Contact" },
 ];
 
 const authLinks = [
@@ -78,10 +79,10 @@ export default function Navbar() {
                   {Icon && <Icon className="w-4 h-4" />} {l.label}
                 </Link>
               ) : (
-                <a key={l.to} href={l.to} data-testid={`nav-${l.label.toLowerCase().replace(/\s/g, "-")}`}
+                <Link key={l.to} to={l.to} data-testid={`nav-${l.label.toLowerCase().replace(/\s/g, "-")}`}
                   className="px-4 py-2 rounded-full text-sm font-semibold hover:bg-muted transition-colors">
                   {l.label}
-                </a>
+                </Link>
               );
             })}
           </nav>
@@ -148,6 +149,14 @@ export default function Navbar() {
                   <DropdownMenuItem onClick={() => navigate("/dashboard/certificates")}>
                     <Award className="w-4 h-4 mr-2" /> Certificates
                   </DropdownMenuItem>
+                  {user.role === "admin" && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="menu-admin">
+                        <LayoutDashboard className="w-4 h-4 mr-2" /> Admin Panel
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={async () => { await logout(); navigate("/"); }} data-testid="menu-logout">
                     <LogOut className="w-4 h-4 mr-2" /> Log out
@@ -179,7 +188,7 @@ export default function Navbar() {
                   {Icon && <Icon className="w-4 h-4" />} {l.label}
                 </Link>
               ) : (
-                <a key={l.to} href={l.to} onClick={() => setOpen(false)} className="px-4 py-3 rounded-2xl font-semibold hover:bg-muted">{l.label}</a>
+                <Link key={l.to} to={l.to} onClick={() => setOpen(false)} className="px-4 py-3 rounded-2xl font-semibold hover:bg-muted">{l.label}</Link>
               );
             })}
           </div>

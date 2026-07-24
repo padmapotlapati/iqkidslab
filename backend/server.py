@@ -26,8 +26,16 @@ from questions_data import (
 )
 from assessment_engine import build_adaptive_session, compute_weighted_score
 from pdf_generator import build_report_pdf, build_certificate_pdf
+from saas_router import build_router as build_saas_router
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from starlette.responses import JSONResponse as _JSONResponse
+
+limiter = Limiter(key_func=get_remote_address)
 
 # --- Mongo ---
 mongo_url = os.environ['MONGO_URL']
@@ -196,14 +204,21 @@ async def register(payload: RegisterIn, response: Response):
 
 
 @api_router.post("/auth/login")
-async def login(payload: LoginIn, response: Response):
+async def login(payload: LoginIn, request: Request, response: Response):
     email = payload.email.lower().strip()
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    if user.get("blocked"):
+        raise HTTPException(status_code=403, detail="Account blocked. Contact support.")
     uid = str(user["_id"])
     access, refresh = create_access_token(uid, email), create_refresh_token(uid)
     set_auth_cookies(response, access, refresh)
+    await db.audit_logs.insert_one({
+        "user_id": uid, "action": "login",
+        "meta": {"ip": request.client.host if request.client else ""},
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
     return {"id": uid, "email": email, "name": user.get("name"), "role": user.get("role", "parent"),
             "xp": user.get("xp", 0), "coins": user.get("coins", 0)}
 
@@ -731,6 +746,15 @@ async def shutdown_db_client():
 
 
 app.include_router(api_router)
+
+# Part 3 SaaS routes (admin, payments, blog, analytics, coupons)
+app.include_router(build_saas_router(db, require_admin, get_current_user, push_notification))
+
+# Rate limiting: limit login/register to prevent brute force
+app.state.limiter = limiter
+@app.exception_handler(RateLimitExceeded)
+async def _ratelimit_handler(request: Request, exc: RateLimitExceeded):
+    return _JSONResponse(status_code=429, content={"detail": "Too many requests. Please try again later."})
 
 frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 app.add_middleware(

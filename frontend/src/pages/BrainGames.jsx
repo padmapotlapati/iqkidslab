@@ -25,7 +25,7 @@ export default function BrainGames() {
     })();
   }, []);
 
-  const playable = ["memory_match", "reaction_tap", "focus_find"]; // implemented games
+  const playable = ["memory_match", "reaction_tap", "focus_find", "pattern_hunt", "math_dash", "word_link", "logic_flow"]; // all games implemented
 
   return (
     <div className="min-h-screen relative overflow-hidden">

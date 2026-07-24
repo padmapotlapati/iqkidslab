@@ -170,7 +170,179 @@ const GAMES = {
   memory_match: { name: "Memory Match", Component: MemoryMatch, color: "from-pink-500 to-rose-500" },
   reaction_tap: { name: "Reaction Tap", Component: ReactionTap, color: "from-orange-500 to-red-500" },
   focus_find: { name: "Focus Find", Component: FocusFind, color: "from-blue-500 to-cyan-500" },
+  pattern_hunt: { name: "Pattern Hunt", Component: PatternHunt, color: "from-purple-500 to-fuchsia-500" },
+  math_dash: { name: "Math Dash", Component: MathDash, color: "from-emerald-500 to-teal-500" },
+  word_link: { name: "Word Link", Component: WordLink, color: "from-yellow-500 to-orange-500" },
+  logic_flow: { name: "Logic Flow", Component: LogicFlow, color: "from-indigo-500 to-purple-500" },
 };
+
+function PatternHunt({ onFinish }) {
+  const [round, setRound] = useState(0);
+  const [score, setScore] = useState(0);
+  const [start] = useState(Date.now());
+  const puzzles = useMemo(() => [
+    { seq: [2, 4, 6, 8], options: [9, 10, 11, 12], answer: 1 },
+    { seq: [1, 4, 9, 16], options: [20, 25, 30, 36], answer: 1 },
+    { seq: [3, 6, 12, 24], options: [36, 42, 48, 50], answer: 2 },
+    { seq: [1, 1, 2, 3, 5], options: [7, 8, 9, 10], answer: 1 },
+    { seq: [5, 10, 20, 40], options: [60, 70, 80, 100], answer: 2 },
+  ], []);
+  const p = puzzles[round];
+  const pick = (i) => {
+    const newScore = score + (i === p.answer ? 20 : 0);
+    setScore(newScore);
+    if (round + 1 >= puzzles.length) setTimeout(() => onFinish({ score: newScore, duration: Math.round((Date.now() - start) / 1000) }), 200);
+    else setRound(r => r + 1);
+  };
+  return (
+    <div>
+      <div className="flex justify-between mb-4 text-sm font-bold text-muted-foreground">
+        <span>Round: <span className="text-foreground" data-testid="ph-round">{round + 1}</span>/{puzzles.length}</span>
+        <span>Score: {score}</span>
+      </div>
+      <div className="rounded-2xl bg-muted p-6 text-center">
+        <p className="text-xs font-bold uppercase text-muted-foreground">Which number comes next?</p>
+        <p className="text-3xl sm:text-4xl font-display font-black mt-2">{p.seq.join(", ")}, ?</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3 mt-4">
+        {p.options.map((o, i) => (
+          <button key={i} onClick={() => pick(i)} data-testid={`ph-option-${i}`}
+            className="px-5 py-4 rounded-2xl border-2 font-black text-lg bg-card hover:border-primary hover:-translate-y-0.5 transition-all">{o}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MathDash({ onFinish }) {
+  const [q, setQ] = useState(null);
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(30);
+
+  const genQ = () => {
+    const ops = ["+", "-", "×"];
+    const op = ops[Math.floor(Math.random() * ops.length)];
+    let a = Math.floor(Math.random() * 12) + 1, b = Math.floor(Math.random() * 12) + 1;
+    let ans;
+    if (op === "+") ans = a + b;
+    else if (op === "-") { if (b > a) [a, b] = [b, a]; ans = a - b; }
+    else ans = a * b;
+    const opts = new Set([ans]);
+    while (opts.size < 4) opts.add(Math.max(0, ans + Math.floor(Math.random() * 10) - 5));
+    return { text: `${a} ${op} ${b}`, ans, opts: Array.from(opts).sort(() => Math.random() - 0.5) };
+  };
+
+  useEffect(() => { setQ(genQ()); }, []);
+  useEffect(() => {
+    const t = setInterval(() => setTimeLeft(v => v <= 1 ? 0 : v - 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
+    if (timeLeft === 0) onFinish({ score, duration: 30 });
+  }, [timeLeft, score, onFinish]);
+
+  const pick = (n) => {
+    if (n === q.ans) setScore(s => s + 15);
+    setQ(genQ());
+  };
+
+  if (!q) return null;
+  return (
+    <div>
+      <div className="flex justify-between mb-4 text-sm font-bold">
+        <span className="text-muted-foreground">Score: <span className="text-foreground" data-testid="md-score">{score}</span></span>
+        <span className={timeLeft <= 5 ? "text-red-500" : "text-muted-foreground"}>Time: {timeLeft}s</span>
+      </div>
+      <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white p-8 text-center">
+        <p className="text-xs font-bold uppercase text-white/70">Solve it!</p>
+        <p className="text-5xl font-display font-black mt-2">{q.text} = ?</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3 mt-4">
+        {q.opts.map((o, i) => (
+          <button key={i} onClick={() => pick(o)} data-testid={`md-opt-${i}`}
+            className="px-5 py-4 rounded-2xl border-2 font-black text-2xl bg-card hover:border-emerald-500 hover:-translate-y-0.5 transition-all">{o}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WordLink({ onFinish }) {
+  const [round, setRound] = useState(0);
+  const [score, setScore] = useState(0);
+  const [start] = useState(Date.now());
+  const puzzles = useMemo(() => [
+    { q: "Which word rhymes with CAT?", opts: ["Dog", "Bat", "Fish", "Sun"], a: 1 },
+    { q: "Synonym of BIG:", opts: ["Small", "Huge", "Tiny", "Thin"], a: 1 },
+    { q: "Opposite of HAPPY:", opts: ["Joyful", "Sad", "Excited", "Sleepy"], a: 1 },
+    { q: "Which word rhymes with STAR?", opts: ["Sun", "Moon", "Jar", "Sky"], a: 2 },
+    { q: "Synonym of QUICK:", opts: ["Slow", "Fast", "Late", "Old"], a: 1 },
+  ], []);
+  const p = puzzles[round];
+  const pick = (i) => {
+    const newScore = score + (i === p.a ? 20 : 0);
+    setScore(newScore);
+    if (round + 1 >= puzzles.length) setTimeout(() => onFinish({ score: newScore, duration: Math.round((Date.now() - start) / 1000) }), 200);
+    else setRound(r => r + 1);
+  };
+  return (
+    <div>
+      <div className="flex justify-between mb-4 text-sm font-bold text-muted-foreground">
+        <span>Round: <span className="text-foreground" data-testid="wl-round">{round + 1}</span>/{puzzles.length}</span>
+        <span>Score: {score}</span>
+      </div>
+      <div className="rounded-2xl bg-gradient-to-br from-yellow-500 to-orange-500 text-white p-6 text-center">
+        <p className="text-xl sm:text-2xl font-display font-black">{p.q}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3 mt-4">
+        {p.opts.map((o, i) => (
+          <button key={i} onClick={() => pick(i)} data-testid={`wl-opt-${i}`}
+            className="px-5 py-4 rounded-2xl border-2 font-black text-lg bg-card hover:border-yellow-500 hover:-translate-y-0.5 transition-all">{o}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LogicFlow({ onFinish }) {
+  const [round, setRound] = useState(0);
+  const [score, setScore] = useState(0);
+  const [start] = useState(Date.now());
+  const puzzles = useMemo(() => [
+    { q: "If all cats are animals, and Milo is a cat, Milo is:", opts: ["A plant", "An animal", "A car", "Cannot say"], a: 1 },
+    { q: "A > B, B > C. So:", opts: ["A < C", "A = C", "A > C", "Cannot say"], a: 2 },
+    { q: "Today is Wednesday. Two days later is:", opts: ["Thursday", "Friday", "Saturday", "Sunday"], a: 1 },
+    { q: "12 apples split equally among 3 kids. Each gets:", opts: ["3", "4", "5", "6"], a: 1 },
+    { q: "If 5 pens cost $10, one pen costs:", opts: ["$1", "$2", "$3", "$5"], a: 1 },
+  ], []);
+  const p = puzzles[round];
+  const pick = (i) => {
+    const newScore = score + (i === p.a ? 20 : 0);
+    setScore(newScore);
+    if (round + 1 >= puzzles.length) setTimeout(() => onFinish({ score: newScore, duration: Math.round((Date.now() - start) / 1000) }), 200);
+    else setRound(r => r + 1);
+  };
+  return (
+    <div>
+      <div className="flex justify-between mb-4 text-sm font-bold text-muted-foreground">
+        <span>Round: <span className="text-foreground" data-testid="lf-round">{round + 1}</span>/{puzzles.length}</span>
+        <span>Score: {score}</span>
+      </div>
+      <div className="rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 text-white p-6">
+        <p className="text-lg sm:text-xl font-display font-black">{p.q}</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+        {p.opts.map((o, i) => (
+          <button key={i} onClick={() => pick(i)} data-testid={`lf-opt-${i}`}
+            className="px-5 py-4 rounded-2xl border-2 font-black text-left bg-card hover:border-indigo-500 hover:-translate-y-0.5 transition-all">
+            <span className="inline-flex w-7 h-7 rounded-lg bg-muted items-center justify-center text-sm mr-3 font-black">{String.fromCharCode(65 + i)}</span>
+            {o}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function BrainGamePlay() {
   const { gameKey } = useParams();
