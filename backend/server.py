@@ -719,6 +719,15 @@ async def startup():
     await db.assessments.create_index("child_id")
     await db.assessment_sessions.create_index("parent_id")
     await db.certificates.create_index("certificate_id", unique=True)
+    # Deduplicate existing coupons before creating unique index
+    seen_codes = set()
+    async for c in db.coupons.find({}):
+        code = c.get("code")
+        if code in seen_codes:
+            await db.coupons.delete_one({"_id": c["_id"]})
+        else:
+            seen_codes.add(code)
+    await db.coupons.create_index("code", unique=True)
     await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
     await db.brain_game_scores.create_index([("child_id", 1), ("created_at", -1)])
 

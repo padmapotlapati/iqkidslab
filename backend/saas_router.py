@@ -223,9 +223,10 @@ def build_router(db, require_admin, get_current_user, push_notification):
         doc["created_at"] = datetime.now(timezone.utc).isoformat()
         doc["created_by"] = admin["id"]
         try:
-            await db.coupons.insert_one(doc)
+            r = await db.coupons.insert_one(doc)
         except Exception:
             raise HTTPException(400, "Coupon code already exists")
+        doc["id"] = str(r.inserted_id)
         doc.pop("_id", None)
         return doc
 
