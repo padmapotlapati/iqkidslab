@@ -159,7 +159,15 @@ def build_router(db, require_admin, get_current_user, push_notification):
                 "mode": plan.get("mode", "subscription"),
             },
         )
-        session = await stripe_checkout.create_checkout_session(req)
+        session = None
+        try:
+            session = await stripe_checkout.create_checkout_session(req)
+        except Exception as e:
+            msg = str(e)
+            # Stripe INR minimum is ~₹42 ($0.50 USD equivalent). Return a friendly 400.
+            if "50 cents" in msg or "amount_too_small" in msg or "convert to at least" in msg:
+                raise HTTPException(400, "This plan's amount is below the payment processor's minimum. Please choose a larger pack, or check back when UPI/Razorpay is enabled for India.")
+            raise HTTPException(400, f"Could not start checkout: {msg[:200]}")
         await db.payment_transactions.insert_one({
             "session_id": session.session_id,
             "user_id": user["id"],

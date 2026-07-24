@@ -81,7 +81,10 @@ export default function Pricing() {
         coupon_code: validCoupon?.code || null,
       });
       window.location.href = data.checkout_url;
-    } catch { toast.error("Could not start checkout"); }
+    } catch (e) {
+      const msg = e.response?.data?.detail;
+      toast.error(typeof msg === "string" ? msg : "Could not start checkout");
+    }
   };
 
   const monthlyPlan = plans.find(p => p.id === "premium_monthly");

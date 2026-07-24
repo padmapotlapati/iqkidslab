@@ -92,7 +92,7 @@ export default function Admin() {
             <Stat icon={Eye} label="Total visits" value={stats.total_pageviews} color="from-pink-500 to-rose-500" testid="stat-views" />
             <Stat icon={Eye} label="Unique visitors" value={stats.unique_visitors} color="from-fuchsia-500 to-purple-500" testid="stat-uniques" />
             <Stat icon={Activity} label="Active 7d" value={stats.active_users_7d} color="from-orange-500 to-red-500" testid="stat-active" />
-            <Stat icon={DollarSign} label="Revenue" value={`$${stats.revenue_total.toFixed(2)}`} color="from-emerald-600 to-lime-500" testid="stat-revenue" />
+            <Stat icon={DollarSign} label="Revenue" value={`₹${(stats.revenue_total || 0).toLocaleString("en-IN")}`} color="from-emerald-600 to-lime-500" testid="stat-revenue" />
           </div>
         )}
 
