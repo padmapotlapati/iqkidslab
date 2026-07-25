@@ -560,62 +560,53 @@ async def verify_certificate(certificate_id: str):
 
 
 # ============ BRAIN GAMES ============
+# Curated: 5 games per age group (20 total), with Easy / Medium / Hard tiers.
 BRAIN_GAMES = [
-    # ============ AGE 3-5 ============
-    {"key": "color_match_easy", "engine": "color_match", "name": "Color Match", "category": "visual_intelligence", "age_groups": ["3-5"], "difficulty": 1, "color": "from-pink-500 to-rose-500", "icon": "shapes", "description": "Tap the shape that matches the color."},
-    {"key": "shape_sort_easy", "engine": "odd_one_out", "name": "Shape Sort", "category": "visual_intelligence", "age_groups": ["3-5"], "difficulty": 1, "color": "from-yellow-400 to-orange-400", "icon": "shapes", "description": "Find the one that doesn't belong."},
-    {"key": "memory_match_easy", "engine": "memory_match", "name": "Baby Memory", "category": "memory", "age_groups": ["3-5"], "difficulty": 1, "color": "from-purple-400 to-pink-500", "icon": "brain", "description": "Match 4 pairs of cute pictures."},
-    {"key": "focus_find_easy", "engine": "focus_find", "name": "Find the Different", "category": "attention", "age_groups": ["3-5"], "difficulty": 1, "color": "from-blue-400 to-cyan-500", "icon": "target", "description": "Which one is different?"},
-    {"key": "reaction_tap_easy", "engine": "reaction_tap", "name": "Tap the Star", "category": "processing_speed", "age_groups": ["3-5"], "difficulty": 1, "color": "from-orange-400 to-red-400", "icon": "zap", "description": "Tap when the star lights up!"},
-    {"key": "sequence_easy", "engine": "sequence_recall", "name": "Copy Me", "category": "memory", "age_groups": ["3-5"], "difficulty": 1, "color": "from-emerald-400 to-teal-400", "icon": "brain", "description": "Watch the colors, then tap them back."},
-    {"key": "big_small", "engine": "odd_one_out", "name": "Big or Small", "category": "logical_reasoning", "age_groups": ["3-5"], "difficulty": 1, "color": "from-indigo-400 to-purple-400", "icon": "shapes", "description": "Which one is the biggest?", "variant": "big_small"},
-    {"key": "count_easy", "engine": "focus_find", "name": "Count the Fruit", "category": "attention", "age_groups": ["3-5"], "difficulty": 1, "color": "from-lime-400 to-green-500", "icon": "target", "description": "How many apples?", "variant": "count"},
-    {"key": "pattern_easy", "engine": "pattern_hunt", "name": "Next Color", "category": "pattern_recognition", "age_groups": ["3-5"], "difficulty": 1, "color": "from-fuchsia-400 to-pink-500", "icon": "shapes", "description": "Which color comes next?"},
-    {"key": "animal_sounds", "engine": "color_match", "name": "Match the Animal", "category": "memory", "age_groups": ["3-5"], "difficulty": 1, "color": "from-amber-400 to-orange-500", "icon": "brain", "description": "Match the animal to its home."},
+    # ============ AGE 3-5 ============ (playful, tactile)
+    {"key": "color_match_easy",   "engine": "color_match",     "name": "Color Match",       "category": "visual_intelligence", "age_groups": ["3-5"], "difficulty": 1, "difficulty_label": "Easy",   "color": "from-pink-500 to-rose-500",       "icon": "shapes",     "description": "Tap the swatch that matches the color."},
+    {"key": "memory_match_easy",  "engine": "memory_match",    "name": "Baby Memory",       "category": "memory",              "age_groups": ["3-5"], "difficulty": 1, "difficulty_label": "Easy",   "color": "from-purple-400 to-pink-500",     "icon": "brain",      "description": "Match 4 pairs of cute pictures.",         "variant": "pairs4"},
+    {"key": "shape_sort_easy",    "engine": "odd_one_out",     "name": "Shape Sort",        "category": "visual_intelligence", "age_groups": ["3-5"], "difficulty": 2, "difficulty_label": "Medium", "color": "from-yellow-400 to-orange-400",   "icon": "shapes",     "description": "Which shape doesn't belong?",             "variant": "shapes"},
+    {"key": "sequence_easy",      "engine": "sequence_recall", "name": "Copy Me",           "category": "memory",              "age_groups": ["3-5"], "difficulty": 2, "difficulty_label": "Medium", "color": "from-emerald-400 to-teal-400",    "icon": "brain",      "description": "Watch the colors — then tap them back.",  "variant": "length3"},
+    {"key": "pattern_easy",       "engine": "pattern_hunt",    "name": "Next Color",        "category": "pattern_recognition", "age_groups": ["3-5"], "difficulty": 3, "difficulty_label": "Hard",   "color": "from-fuchsia-400 to-pink-500",    "icon": "shapes",     "description": "Spot the number that comes next.",        "variant": "easy"},
 
-    # ============ AGE 6-8 ============
-    {"key": "memory_match", "engine": "memory_match", "name": "Memory Match", "category": "memory", "age_groups": ["6-8"], "difficulty": 2, "color": "from-pink-500 to-rose-500", "icon": "brain", "description": "Match 6 pairs of pictures."},
-    {"key": "reaction_tap", "engine": "reaction_tap", "name": "Reaction Tap", "category": "processing_speed", "age_groups": ["6-8"], "difficulty": 2, "color": "from-orange-500 to-red-500", "icon": "zap", "description": "Tap when the box turns green."},
-    {"key": "focus_find", "engine": "focus_find", "name": "Focus Find", "category": "attention", "age_groups": ["6-8"], "difficulty": 2, "color": "from-blue-500 to-cyan-500", "icon": "target", "description": "Spot the odd one out under time pressure."},
-    {"key": "pattern_hunt", "engine": "pattern_hunt", "name": "Pattern Hunt", "category": "pattern_recognition", "age_groups": ["6-8"], "difficulty": 2, "color": "from-purple-500 to-fuchsia-500", "icon": "shapes", "description": "Spot the next number in the sequence."},
-    {"key": "math_dash_easy", "engine": "math_dash", "name": "Math Sprint", "category": "mathematical_thinking", "age_groups": ["6-8"], "difficulty": 2, "color": "from-emerald-500 to-teal-500", "icon": "calculator", "description": "Solve quick + and − sums."},
-    {"key": "word_link_easy", "engine": "word_link", "name": "Rhyme Time", "category": "language_skills", "age_groups": ["6-8"], "difficulty": 2, "color": "from-yellow-500 to-orange-500", "icon": "book", "description": "Find words that rhyme."},
-    {"key": "sequence_med", "engine": "sequence_recall", "name": "Simon Says", "category": "memory", "age_groups": ["6-8"], "difficulty": 2, "color": "from-indigo-500 to-purple-500", "icon": "brain", "description": "Repeat the color sequence."},
-    {"key": "odd_one_out_med", "engine": "odd_one_out", "name": "Odd One Out", "category": "attention", "age_groups": ["6-8"], "difficulty": 2, "color": "from-cyan-500 to-blue-500", "icon": "target", "description": "Which one doesn't belong?"},
-    {"key": "color_match_med", "engine": "color_match", "name": "Color Rush", "category": "processing_speed", "age_groups": ["6-8"], "difficulty": 2, "color": "from-rose-500 to-pink-500", "icon": "zap", "description": "Match colors as fast as you can."},
-    {"key": "number_order", "engine": "sequence_recall", "name": "Number Order", "category": "mathematical_thinking", "age_groups": ["6-8"], "difficulty": 2, "color": "from-lime-500 to-emerald-500", "icon": "calculator", "description": "Tap numbers in order.", "variant": "numbers"},
+    # ============ AGE 6-8 ============ (school-age, foundational)
+    {"key": "reaction_tap",       "engine": "reaction_tap",    "name": "Reaction Tap",      "category": "processing_speed",    "age_groups": ["6-8"], "difficulty": 1, "difficulty_label": "Easy",   "color": "from-orange-500 to-red-500",      "icon": "zap",        "description": "Tap the moment the box turns green."},
+    {"key": "memory_match",       "engine": "memory_match",    "name": "Memory Match",      "category": "memory",              "age_groups": ["6-8"], "difficulty": 1, "difficulty_label": "Easy",   "color": "from-pink-500 to-rose-500",       "icon": "brain",      "description": "Match 6 pairs of pictures.",              "variant": "pairs6"},
+    {"key": "math_dash_easy",     "engine": "math_dash",       "name": "Math Sprint",       "category": "mathematical_thinking","age_groups":["6-8"], "difficulty": 2, "difficulty_label": "Medium", "color": "from-emerald-500 to-teal-500",    "icon": "calculator", "description": "Beat the clock with quick + and − sums.", "variant": "add_sub"},
+    {"key": "word_link_easy",     "engine": "word_link",       "name": "Rhyme Time",        "category": "language_skills",     "age_groups": ["6-8"], "difficulty": 2, "difficulty_label": "Medium", "color": "from-yellow-500 to-orange-500",   "icon": "book",       "description": "Find the word that rhymes."},
+    {"key": "sequence_med",       "engine": "sequence_recall", "name": "Simon Says",        "category": "memory",              "age_groups": ["6-8"], "difficulty": 3, "difficulty_label": "Hard",   "color": "from-indigo-500 to-purple-500",   "icon": "brain",      "description": "Repeat the color sequence — it grows!",   "variant": "length4"},
 
-    # ============ AGE 9-12 ============
-    {"key": "memory_match_hard", "engine": "memory_match", "name": "Memory Master", "category": "memory", "age_groups": ["9-12"], "difficulty": 3, "color": "from-pink-500 to-rose-500", "icon": "brain", "description": "Match 8 pairs — how quick can you go?"},
-    {"key": "math_dash", "engine": "math_dash", "name": "Math Dash", "category": "mathematical_thinking", "age_groups": ["9-12"], "difficulty": 3, "color": "from-emerald-500 to-teal-500", "icon": "calculator", "description": "Solve quick math against the clock."},
-    {"key": "pattern_hunt_med", "engine": "pattern_hunt", "name": "Number Series", "category": "pattern_recognition", "age_groups": ["9-12"], "difficulty": 3, "color": "from-purple-500 to-fuchsia-500", "icon": "shapes", "description": "Which number comes next?"},
-    {"key": "word_link", "engine": "word_link", "name": "Word Link", "category": "language_skills", "age_groups": ["9-12"], "difficulty": 3, "color": "from-yellow-500 to-orange-500", "icon": "book", "description": "Match rhymes, synonyms & antonyms."},
-    {"key": "logic_flow", "engine": "logic_flow", "name": "Logic Flow", "category": "logical_reasoning", "age_groups": ["9-12"], "difficulty": 3, "color": "from-indigo-500 to-purple-500", "icon": "puzzle", "description": "Solve step-by-step logic puzzles."},
-    {"key": "focus_find_med", "engine": "focus_find", "name": "Attention Hunt", "category": "attention", "age_groups": ["9-12"], "difficulty": 3, "color": "from-blue-500 to-cyan-500", "icon": "target", "description": "Find the odd number quickly.", "variant": "numbers"},
-    {"key": "reaction_med", "engine": "reaction_tap", "name": "Lightning Tap", "category": "processing_speed", "age_groups": ["9-12"], "difficulty": 3, "color": "from-orange-500 to-red-500", "icon": "zap", "description": "How fast are your reflexes?"},
-    {"key": "sequence_hard", "engine": "sequence_recall", "name": "Memory Chain", "category": "memory", "age_groups": ["9-12"], "difficulty": 3, "color": "from-fuchsia-500 to-purple-500", "icon": "brain", "description": "Recall a longer color chain."},
-    {"key": "word_scramble", "engine": "word_scramble", "name": "Word Scramble", "category": "language_skills", "age_groups": ["9-12"], "difficulty": 3, "color": "from-amber-500 to-orange-500", "icon": "book", "description": "Unscramble the letters."},
-    {"key": "odd_number_out", "engine": "odd_one_out", "name": "Number Detective", "category": "logical_reasoning", "age_groups": ["9-12"], "difficulty": 3, "color": "from-teal-500 to-cyan-500", "icon": "puzzle", "description": "Find the odd number.", "variant": "numbers"},
+    # ============ AGE 9-12 ============ (challenge & reasoning)
+    {"key": "math_dash",          "engine": "math_dash",       "name": "Math Dash",         "category": "mathematical_thinking","age_groups":["9-12"],"difficulty": 1, "difficulty_label": "Easy",   "color": "from-emerald-500 to-teal-500",    "icon": "calculator", "description": "Mixed math against the clock.",           "variant": "mixed"},
+    {"key": "pattern_hunt_med",   "engine": "pattern_hunt",    "name": "Number Series",     "category": "pattern_recognition", "age_groups": ["9-12"],"difficulty": 2, "difficulty_label": "Medium", "color": "from-purple-500 to-fuchsia-500",  "icon": "shapes",     "description": "Which number comes next in the pattern?", "variant": "medium"},
+    {"key": "word_scramble",      "engine": "word_scramble",   "name": "Word Scramble",     "category": "language_skills",     "age_groups": ["9-12"],"difficulty": 2, "difficulty_label": "Medium", "color": "from-amber-500 to-orange-500",    "icon": "book",       "description": "Unscramble the jumbled letters.",          "variant": "medium"},
+    {"key": "sequence_hard",      "engine": "sequence_recall", "name": "Memory Chain",      "category": "memory",              "age_groups": ["9-12"],"difficulty": 3, "difficulty_label": "Hard",   "color": "from-fuchsia-500 to-purple-500",  "icon": "brain",      "description": "Recall an ever-growing color chain.",     "variant": "length5"},
+    {"key": "logic_flow",         "engine": "logic_flow",      "name": "Logic Flow",        "category": "logical_reasoning",   "age_groups": ["9-12"],"difficulty": 3, "difficulty_label": "Hard",   "color": "from-indigo-500 to-purple-500",   "icon": "puzzle",     "description": "Step-by-step logic puzzles."},
 
-    # ============ AGE 13-16 ============
-    {"key": "math_dash_hard", "engine": "math_dash", "name": "Math Blitz", "category": "mathematical_thinking", "age_groups": ["13-16"], "difficulty": 4, "color": "from-emerald-500 to-teal-500", "icon": "calculator", "description": "Fast mental math including × and ÷."},
-    {"key": "word_link_hard", "engine": "word_link", "name": "Vocab Master", "category": "language_skills", "age_groups": ["13-16"], "difficulty": 4, "color": "from-yellow-500 to-orange-500", "icon": "book", "description": "Synonyms & antonyms — expert level."},
-    {"key": "logic_flow_hard", "engine": "logic_flow", "name": "Deep Logic", "category": "logical_reasoning", "age_groups": ["13-16"], "difficulty": 4, "color": "from-indigo-500 to-purple-500", "icon": "puzzle", "description": "Advanced deductive puzzles."},
-    {"key": "pattern_hunt_hard", "engine": "pattern_hunt", "name": "Sequence Sage", "category": "pattern_recognition", "age_groups": ["13-16"], "difficulty": 4, "color": "from-purple-500 to-fuchsia-500", "icon": "shapes", "description": "Fibonacci, primes, and more."},
-    {"key": "memory_match_expert", "engine": "memory_match", "name": "Memory Vault", "category": "memory", "age_groups": ["13-16"], "difficulty": 4, "color": "from-pink-500 to-rose-500", "icon": "brain", "description": "10 pairs — a true test of recall."},
-    {"key": "sequence_expert", "engine": "sequence_recall", "name": "Neural Recall", "category": "memory", "age_groups": ["13-16"], "difficulty": 4, "color": "from-fuchsia-500 to-purple-500", "icon": "brain", "description": "Recall the longest sequence yet."},
-    {"key": "word_scramble_hard", "engine": "word_scramble", "name": "Anagram Ace", "category": "language_skills", "age_groups": ["13-16"], "difficulty": 4, "color": "from-amber-500 to-orange-500", "icon": "book", "description": "Unscramble tricky vocabulary."},
-    {"key": "reaction_hard", "engine": "reaction_tap", "name": "Reflex Pro", "category": "processing_speed", "age_groups": ["13-16"], "difficulty": 4, "color": "from-orange-500 to-red-500", "icon": "zap", "description": "Milliseconds matter."},
-    {"key": "odd_num_hard", "engine": "odd_one_out", "name": "Pattern Anomaly", "category": "attention", "age_groups": ["13-16"], "difficulty": 4, "color": "from-cyan-500 to-blue-500", "icon": "target", "description": "Which number breaks the pattern?", "variant": "numbers"},
-    {"key": "color_rush_pro", "engine": "color_match", "name": "Stroop Test", "category": "processing_speed", "age_groups": ["13-16"], "difficulty": 4, "color": "from-rose-500 to-pink-500", "icon": "zap", "description": "Classic attention challenge."},
+    # ============ AGE 13-16 ============ (expert challenge)
+    {"key": "math_dash_hard",     "engine": "math_dash",       "name": "Math Blitz",        "category": "mathematical_thinking","age_groups":["13-16"],"difficulty": 1, "difficulty_label": "Easy",   "color": "from-emerald-500 to-teal-500",    "icon": "calculator", "description": "Fast mental math — × and ÷ included.",     "variant": "hard"},
+    {"key": "word_scramble_hard", "engine": "word_scramble",   "name": "Anagram Ace",       "category": "language_skills",     "age_groups": ["13-16"],"difficulty": 2, "difficulty_label": "Medium", "color": "from-amber-500 to-orange-500",    "icon": "book",       "description": "Unscramble tricky vocabulary.",           "variant": "hard"},
+    {"key": "pattern_hunt_hard",  "engine": "pattern_hunt",    "name": "Sequence Sage",     "category": "pattern_recognition", "age_groups": ["13-16"],"difficulty": 2, "difficulty_label": "Medium", "color": "from-purple-500 to-fuchsia-500",  "icon": "shapes",     "description": "Fibonacci, primes and more.",             "variant": "hard"},
+    {"key": "logic_flow_hard",    "engine": "logic_flow",      "name": "Deep Logic",        "category": "logical_reasoning",   "age_groups": ["13-16"],"difficulty": 3, "difficulty_label": "Hard",   "color": "from-indigo-500 to-purple-500",   "icon": "puzzle",     "description": "Advanced deductive puzzles."},
+    {"key": "color_rush_pro",     "engine": "color_match",     "name": "Stroop Test",       "category": "processing_speed",    "age_groups": ["13-16"],"difficulty": 3, "difficulty_label": "Hard",   "color": "from-rose-500 to-pink-500",       "icon": "zap",        "description": "Tap the INK color — not the word.",       "variant": "stroop"},
 ]
 
 
 @api_router.get("/games")
-async def list_games(age_group: Optional[str] = None, _=Depends(get_current_user)):
+async def list_games(age_group: Optional[str] = None, age: Optional[int] = None, _=Depends(get_current_user)):
+    if age is not None and not age_group:
+        age_group = age_to_group(age)
     if age_group:
         return [g for g in BRAIN_GAMES if age_group in g.get("age_groups", [])]
     return BRAIN_GAMES
+
+
+@api_router.get("/games/detail/{game_key}")
+async def game_detail(game_key: str, _=Depends(get_current_user)):
+    for g in BRAIN_GAMES:
+        if g["key"] == game_key:
+            return g
+    raise HTTPException(status_code=404, detail="Game not found")
 
 
 @api_router.post("/games/score")
@@ -636,9 +627,39 @@ async def save_game_score(payload: BrainGameScoreIn, user=Depends(get_current_us
     }
     r = await db.brain_game_scores.insert_one(doc)
     xp = max(5, payload.score // 5)
+    # Coin reward: 1 coin per 30 score points, minimum 2 coins.
+    coins = max(2, payload.score // 30)
     await db.children.update_one({"_id": ObjectId(payload.child_id)}, {"$inc": {"xp": xp}})
-    await db.users.update_one({"_id": ObjectId(user["id"])}, {"$inc": {"xp": xp}})
-    return {"id": str(r.inserted_id), "xp_earned": xp}
+    await db.users.update_one({"_id": ObjectId(user["id"])}, {"$inc": {"xp": xp, "coins": coins}})
+    # Bump streak (in-line, mirrors engagement_router logic)
+    today = datetime.now(timezone.utc).date().isoformat()
+    yest = (datetime.now(timezone.utc).date() - timedelta(days=1)).isoformat()
+    streak = await db.streaks.find_one({"child_id": payload.child_id, "parent_id": user["id"]})
+    if not streak:
+        await db.streaks.insert_one({
+            "child_id": payload.child_id, "parent_id": user["id"],
+            "current_streak": 1, "longest_streak": 1,
+            "last_active_date": today, "active_dates": [today],
+        })
+        current_streak = 1
+    elif streak.get("last_active_date") == today:
+        current_streak = streak["current_streak"]
+    else:
+        current_streak = streak.get("current_streak", 0) + 1 if streak.get("last_active_date") == yest else 1
+        longest = max(streak.get("longest_streak", 0), current_streak)
+        active = list(dict.fromkeys((streak.get("active_dates", []) + [today])[-60:]))
+        await db.streaks.update_one({"_id": streak["_id"]}, {"$set": {
+            "current_streak": current_streak, "longest_streak": longest,
+            "last_active_date": today, "active_dates": active,
+        }})
+    # Timeline entry
+    await db.timeline.insert_one({
+        "child_id": payload.child_id, "parent_id": user["id"],
+        "kind": "brain_game", "title": f"Played {payload.game_key}",
+        "meta": {"score": payload.score, "xp": xp, "coins": coins},
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"id": str(r.inserted_id), "xp_earned": xp, "coins_earned": coins, "streak": current_streak}
 
 
 @api_router.get("/games/scores/{child_id}")

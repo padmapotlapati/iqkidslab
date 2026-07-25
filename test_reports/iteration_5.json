@@ -1,0 +1,51 @@
+{
+  "summary": "Brain Games expansion (age-adaptive hub + 4 new engines) tested end-to-end. Backend: 12/12 pytest passed against live REACT_APP_BACKEND_URL. Frontend: all 4 new engines render with correct data-testids, difficulty grouping works, child-switch updates games, and reward panel (xp/coins/streak) shows after game completion. No blocking issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "tests_executed": {
+    "backend_pytest": {
+      "file": "/app/backend/tests/test_brain_games.py",
+      "results": "12/12 passed",
+      "coverage": [
+        "GET /api/games?age_group=3-5|6-8|9-12|13-16 returns exactly 5 games each with difficulty_label Easy/Medium/Hard",
+        "GET /api/games?age=4 auto-maps to 3-5 and returns 5",
+        "Each age group contains all three tiers (Easy/Medium/Hard)",
+        "GET /api/games/detail/color_match_easy returns full metadata (engine, difficulty_label)",
+        "GET /api/games/detail/word_scramble includes variant field",
+        "GET /api/games/detail/nonexistent_key returns 404",
+        "POST /api/games/score returns xp_earned/coins_earned/streak (all present)",
+        "POST /api/games/score increments child.xp by xp_earned (persisted, verified via GET /api/children)",
+        "POST /api/games/score inserts brain_game timeline entry (verified via /api/timeline/{child_id})"
+      ]
+    },
+    "frontend_playwright": {
+      "coverage": [
+        "Login via parent@test.com + navigate to /dashboard/games",
+        "Age 9-12 (TestKid) shows 5 curated cards: math_dash, pattern_hunt_med, word_scramble, sequence_hard, logic_flow grouped Easy=1, Medium=2, Hard=2",
+        "Child switch (age 4 via new profile) reloads catalog with 5 age-appropriate games",
+        "New engine ColorMatch renders cm-word, cm-opt-0..3, cm-round (4 color options)",
+        "New engine SequenceRecall renders exactly 4 buttons (sr-btn-0..3) and sr-round",
+        "New engine OddOneOut renders 6-item grid (oo-item-*, oo-round)",
+        "New engine WordScramble renders ws-scrambled letters + 4 ws-opt-* options + ws-round",
+        "Full game completion (color_match_easy) shows reward-xp='+15 XP', reward-coins='+2 Coins', reward-streak='1-day streak'"
+      ]
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_brain_games.py",
+    "/app/test_reports/pytest/pytest_brain_games.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py POST /api/games/score has a subtle logic gap on streak: when streak.last_active_date == yesterday the branch computes current_streak and calls db.update, but when it's neither today nor yesterday (gap), it computes current_streak=1 yet the update_one is guarded inside the same else-branch — verify this executes (it does, but the code shape is easy to misread). Consider refactoring for clarity.",
+    "BrainGamePlay.jsx is 760 lines with 11 engines in one file — exceeds the 700-line guideline. Consider splitting engines into /components/games/*.jsx.",
+    "PLAYABLE_ENGINES set in BrainGames.jsx must stay in sync with ENGINES map in BrainGamePlay.jsx — a shared constant module would prevent drift."
+  ],
+  "updated_files": ["/app/backend/tests/test_brain_games.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% for tested Brain Games flows"},
+  "test_credentials": "parent@test.com / Parent@12345 (used). Test children created: TEST_BG_4 (age 4). Existing TestKid (age 10) reused.",
+  "seed_data_creation": "1 child profile TEST_BG_4 age 4 created for the parent to exercise age-group 3-5 engines. Multiple game_score rows written by tests (retention harmless).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run backend suite: `python -m pytest /app/backend/tests/test_brain_games.py -v`. Tests use cookie-jar session via requests.Session against REACT_APP_BACKEND_URL and cover catalog / detail / scoring flows. Frontend: all 4 new engines (ColorMatch, SequenceRecall, OddOneOut, WordScramble) verified working with declared data-testids. Reward panel confirmed with actual game play."
+}
