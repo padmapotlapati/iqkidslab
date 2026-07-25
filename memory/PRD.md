@@ -16,6 +16,21 @@ Premium SaaS for parent-supervised brain-skills assessments for kids 3–16. Edu
 ### v4.2 ✅ Assessment & Question Bank v2 (2026-02)
 ### v4.3 ✅ Child Dashboard + Report v2 (2026-02)
 ### v4.4 ✅ Auth v2 — Google Sign-In + Email Verification + Password Reset (2026-02)
+### v4.5 ✅ Razorpay Payments + Subscription + Premium Access (2026-02)
+- **Replaced Stripe** with Razorpay checkout end-to-end (INR-only, one Razorpay module, keys in `.env`)
+- **3 clean plans** on `/pricing`:
+  - Free: 1 assessment / summary report only
+  - Single Assessment Pass — ₹9 (one-time, +1 credit)
+  - Monthly Premium — ₹99/month
+  - Yearly Premium — ₹799/year (~33% off, ribbon "SAVE ~33%")
+- **New router** `/api/razorpay/*`: `config`, `plans`, `order`, `verify` (HMAC SHA256), `webhook` (optional), `subscription`, `subscription/cancel`, `history` — all idempotent, all persisted to `db.payment_transactions` + `db.subscriptions`
+- **Assessment quota gate** on `POST /api/sessions/start`: premium → unlimited → credit → 1 free → paywall (402 `assessment_paywall`) with graceful frontend redirect to `/pricing`
+- **New page** `/dashboard/subscription` — current plan card, credits + free-remaining stats, cancel button, purchase history (sorted, status pills, one row per transaction)
+- **New payment pages** `/payment/success?order_id=` (polls history for `paid`, confetti + CTA) + `/payment/cancel?order_id=`
+- **Navbar** dropdown now surfaces "Subscription"
+- **Security**: server-side amount validation, HMAC-verified payments, idempotent verify+webhook, order superseding on renewal
+- **Tested**: 20/20 backend pytest + full frontend flows (checkout.js loads, real Razorpay modal opens with UPI/Cards/QR) — iteration_9.json
+
 - **Emergent-managed Google Sign-In** for parents (button on Login + Register → `auth.emergentagent.com` → `/auth/callback` handles `#session_id=` fragment)
 - **Email verification** with hard-lock: unverified users get 403 `email_verification_required` on `/children`, `/sessions/start|submit`, `/games/score`; frontend `Protected` route redirects them to `/verify-email-required`
 - **Password reset** flow (1-hour token TTL): `/forgot-password` + `/reset-password?token=` pages; enumeration-safe (always returns ok)

@@ -94,6 +94,10 @@ def build_razorpay_router(db, get_current_user, push_notification) -> APIRouter:
         except Exception as e:
             raise HTTPException(status_code=502, detail=f"Razorpay error: {e}")
 
+        # Belt-and-suspenders: confirm SDK didn't tamper with the amount
+        if int(order.get("amount", 0)) != plan["amount_paise"]:
+            raise HTTPException(status_code=500, detail="Order amount mismatch")
+
         # Persist transaction record (status: created)
         await db.payment_transactions.insert_one({
             "provider": "razorpay",
