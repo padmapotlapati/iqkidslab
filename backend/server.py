@@ -371,6 +371,30 @@ async def start_session(payload: StartSessionIn, user=Depends(require_verified_u
         raise HTTPException(status_code=400, detail="Invalid child id")
     if not child: raise HTTPException(status_code=404, detail="Child not found")
 
+    # ============ Assessment quota gate ============
+    # Priority: active subscription > paid credits > 1 free assessment > paywall
+    raw_user = await db.users.find_one({"_id": ObjectId(user["id"])})
+    sub = await db.subscriptions.find_one({"user_id": user["id"], "active": True})
+    is_premium = bool(sub)
+    credits = int((raw_user or {}).get("assessment_credits", 0))
+    free_used = int((raw_user or {}).get("free_assessments_used", 0))
+
+    quota_source = None  # "premium" | "credit" | "free"
+    if is_premium or user.get("role") == "admin":
+        quota_source = "premium"
+    elif credits > 0:
+        quota_source = "credit"
+    elif free_used < 1:
+        quota_source = "free"
+    else:
+        raise HTTPException(status_code=402, detail={
+            "code": "assessment_paywall",
+            "message": "Your free assessment has been used. Upgrade to unlock unlimited assessments.",
+            "free_assessments_remaining": 0,
+            "assessment_credits": credits,
+            "is_premium": False,
+        })
+
     age_group = child["age_group"]
 
     # ---- Adaptive inputs ----
@@ -385,6 +409,12 @@ async def start_session(payload: StartSessionIn, user=Depends(require_verified_u
         if len(priors) < 3 and isinstance(a.get("overall_score"), (int, float)):
             priors.append(a["overall_score"])
     avg_prior = (sum(priors) / len(priors)) if priors else None
+
+    # Consume the quota now (atomic-ish — before we allocate questions)
+    if quota_source == "credit":
+        await db.users.update_one({"_id": ObjectId(user["id"])}, {"$inc": {"assessment_credits": -1}})
+    elif quota_source == "free":
+        await db.users.update_one({"_id": ObjectId(user["id"])}, {"$inc": {"free_assessments_used": 1}})
 
     questions = build_adaptive_session(
         age_group,
@@ -987,6 +1017,10 @@ app.include_router(api_router)
 # Auth v2 (Google Sign-In, Email verification, Password reset)
 from auth_v2_router import build_auth_v2_router
 app.include_router(build_auth_v2_router(db, get_current_user, push_notification))
+
+# Razorpay payments (replaces Stripe checkout for INR)
+from razorpay_router import build_razorpay_router
+app.include_router(build_razorpay_router(db, get_current_user, push_notification))
 
 # Part 3 SaaS routes (admin, payments, blog, analytics, coupons)
 app.include_router(build_saas_router(db, require_admin, get_current_user, push_notification))

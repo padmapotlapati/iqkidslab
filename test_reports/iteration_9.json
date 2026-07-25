@@ -1,0 +1,39 @@
+{
+  "summary": "Full backend + frontend testing for Razorpay integration (replaces Stripe). Backend: 20/20 pytest cases passed covering /config, /plans, /order (single/monthly/yearly + invalid + unauth), /verify (HMAC signature failure→signature_failed status; valid HMAC→credit grant / active subscription; idempotency verified; superseding), /subscription (shape + is_premium), /subscription/cancel, /history (sorted+shape), /webhook (empty-secret path reconciles payment.captured), and /sessions/start quota gate (premium=no consumption, credit=decrement, free=increment, exhausted=402 assessment_paywall). Frontend: /pricing renders all 4 plan cards + ribbons + INR prices; login as parent@test.com → Navbar user-menu-trigger exposes menu-subscription link; /dashboard/subscription renders current-plan-card + purchase-history-card + upgrade-cta-btn; clicking subscribe-single loads https://checkout.razorpay.com/v1/checkout.js, sets window.Razorpay function, and opens the Razorpay iframe modal (verified visually — screenshot shows real Razorpay Payment Options with UPI/Cards/QR); /payment/cancel shows payment-back-to-pricing; /payment/success shows payment-success-card in polling state.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/razorpay/order", "issue": "No amount validation on server response after razorpay SDK call — currently trusts SDK's returned amount. Low risk since amount is server-picked from PLANS dict, but consider asserting order['amount'] == plan['amount_paise'] defensively."},
+      {"endpoint": "/api/razorpay/webhook", "issue": "When RAZORPAY_WEBHOOK_SECRET is empty (current default), signature verification is skipped entirely — production must set this secret or webhook can be spoofed. Only a minor concern for staging."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Razorpay checkout modal", "issues": ["Console shows benign Mixed Content warnings from Razorpay's own iframe attempting to load localhost preview images — this is a Razorpay CDN quirk in test-mode, not our bug"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_razorpay.py",
+    "/app/test_reports/pytest/razorpay_results.xml"
+  ],
+  "action_items": [
+    "Optional: set RAZORPAY_WEBHOOK_SECRET in backend/.env once the Razorpay dashboard webhook is configured — currently empty so signature is not enforced (documented behavior).",
+    "Optional hardening: in /api/razorpay/order, assert razorpay SDK returned amount matches PLANS[plan_id].amount_paise as belt-and-suspenders check."
+  ],
+  "critical_code_review_comments": [
+    "razorpay_router.py: _grant_entitlement idempotency check uses find_one({order_id, status:'paid'}) — this is correct BUT the verify endpoint then unconditionally overwrites status='paid' on the tx record. Second call to /verify returns 200 with grant={already_processed:true}, which is fine and confirmed by test. Behavior is safe.",
+    "Subscription superseding: verified — activating a new sub while another is active sets superseded_at on the old one. Test test_verify_yearly_supersedes_monthly passed.",
+    "server.py /sessions/start quota gate: verified priority order premium > credit > free > 402. All 4 branches tested and pass. Race condition possible on concurrent requests (read-then-decrement is not atomic), but low priority.",
+    "Frontend Pricing.jsx: uses loadRazorpayScript() correctly, checkout.js loads from official CDN, window.Razorpay(options) opens modal successfully."
+  ],
+  "updated_files": ["/app/backend/tests/test_razorpay.py"],
+  "success_rate": {"backend": "100% (20/20)", "frontend": "100% (all data-testids present, checkout.js loads, Razorpay modal opens)"},
+  "test_credentials": "parent@test.com / Parent@12345 — after this run has 6 assessment_credits, 0 active subscriptions (cleaned up by cancel test). Two TEST_* fresh users were created for paywall/credit-consumption tests; they remain in DB with email lowercased.",
+  "seed_data_creation": "During tests, multiple real Razorpay TEST-mode orders were created against rzp_test_THnAcohwRsSXeH. Corresponding db.payment_transactions rows exist (statuses: created, signature_failed, paid). db.subscriptions holds inactive superseded rows. Two TEST_paywall_* / TEST_credit_* users created for quota testing.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend Razorpay tests live in /app/backend/tests/test_razorpay.py — run with `pytest backend/tests/test_razorpay.py -v`. Uses real Razorpay TEST keys and computes HMAC signatures client-side to simulate valid payments (no actual charge). Uses pymongo (sync) to directly flip email_verified=true and reset assessment_credits/free_assessments_used on freshly registered users, since register→verify email flow requires token exchange. Emails are stored lowercased in db.users — remember to .lower() when doing direct DB lookups. Frontend: Razorpay modal is iframe-based, don't try to complete a payment in Playwright.",
+  "rca of the issue": "No issues found. All 20 backend tests + all frontend data-testids verified. Razorpay integration is production-quality for TEST-mode."
+}

@@ -27,6 +27,7 @@ import Timeline from "@/pages/Timeline";
 import DailyChallenge from "@/pages/DailyChallenge";
 import Admin from "@/pages/Admin";
 import Pricing from "@/pages/Pricing";
+import Subscription from "@/pages/Subscription";
 import { PaymentSuccess, PaymentCancel } from "@/pages/Payment";
 import { BlogList, BlogPost } from "@/pages/Blog";
 import { About, Contact, Privacy, Terms, Cookies, Disclaimer } from "@/pages/StaticPages";
@@ -87,6 +88,7 @@ function App() {
             <Route path="/dashboard/rewards" element={<Protected><Rewards /></Protected>} />
             <Route path="/dashboard/timeline" element={<Protected><Timeline /></Protected>} />
             <Route path="/dashboard/daily-challenge" element={<Protected><DailyChallenge /></Protected>} />
+            <Route path="/dashboard/subscription" element={<Protected><Subscription /></Protected>} />
             <Route path="/admin" element={<Protected><Admin /></Protected>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

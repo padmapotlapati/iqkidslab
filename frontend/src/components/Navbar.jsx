@@ -2,7 +2,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon, Brain, LogOut, LayoutDashboard, Menu, X, Bell, Award, TrendingUp, Gamepad2, Gift } from "lucide-react";
+import { Sun, Moon, Brain, LogOut, LayoutDashboard, Menu, X, Bell, Award, TrendingUp, Gamepad2, Gift, CreditCard } from "lucide-react";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import {
@@ -152,6 +152,9 @@ export default function Navbar() {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/dashboard/certificates")}>
                     <Award className="w-4 h-4 mr-2" /> Certificates
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/dashboard/subscription")} data-testid="menu-subscription">
+                    <CreditCard className="w-4 h-4 mr-2" /> Subscription
                   </DropdownMenuItem>
                   {user.role === "admin" && (
                     <>

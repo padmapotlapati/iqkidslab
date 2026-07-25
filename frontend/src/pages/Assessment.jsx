@@ -40,8 +40,15 @@ export default function Assessment() {
         setQuestions(data.questions);
         setTimeLeft(data.time_per_question);
       } catch (e) {
-        toast.error(formatApiError(e.response?.data?.detail) || "Could not start assessment");
-        navigate("/dashboard");
+        const detail = e.response?.data?.detail;
+        // Paywall response: server returns 402 with structured detail
+        if (e.response?.status === 402 && typeof detail === "object" && detail?.code === "assessment_paywall") {
+          toast.info(detail.message || "Your free assessment has been used. Upgrade to continue.");
+          navigate("/pricing");
+        } else {
+          toast.error(formatApiError(detail) || "Could not start assessment");
+          navigate("/dashboard");
+        }
       }
       setLoading(false);
     })();
