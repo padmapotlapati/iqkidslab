@@ -152,8 +152,11 @@ export default function Assessment() {
               <span>{CATEGORY_EMOJI[currentQ.category] || "🧠"}</span>
             </div>
             <div>
-              <p className="text-xs font-bold uppercase text-muted-foreground tracking-widest">
-                {currentQ.category.replace(/_/g, " ")} · Difficulty {currentQ.difficulty}
+              <p className="text-xs font-bold uppercase text-muted-foreground tracking-widest" data-testid="assessment-question-meta">
+                {currentQ.category.replace(/_/g, " ")} · <span className={
+                  currentQ.difficulty_label === "Easy" ? "text-emerald-600" :
+                  currentQ.difficulty_label === "Hard" ? "text-rose-600" : "text-amber-600"
+                }>{currentQ.difficulty_label || `Difficulty ${currentQ.difficulty}`}</span>
               </p>
             </div>
           </div>

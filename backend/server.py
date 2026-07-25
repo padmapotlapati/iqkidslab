@@ -314,7 +314,25 @@ async def start_session(payload: StartSessionIn, user=Depends(get_current_user))
     if not child: raise HTTPException(status_code=404, detail="Child not found")
 
     age_group = child["age_group"]
-    questions = build_adaptive_session(age_group)
+
+    # ---- Adaptive inputs ----
+    # 1) seen_ids: last N assessments' question_ids (to minimize repetition)
+    # 2) avg_prior_score: avg of last 3 overall_scores (to tune difficulty mix)
+    seen_ids: set = set()
+    priors: list = []
+    async for a in db.assessments.find(
+        {"child_id": payload.child_id, "parent_id": user["id"]}
+    ).sort("created_at", -1).limit(5):
+        seen_ids.update(a.get("question_ids", []) or [])
+        if len(priors) < 3 and isinstance(a.get("overall_score"), (int, float)):
+            priors.append(a["overall_score"])
+    avg_prior = (sum(priors) / len(priors)) if priors else None
+
+    questions = build_adaptive_session(
+        age_group,
+        seen_ids=seen_ids,
+        avg_prior_score=avg_prior,
+    )
     if not questions:
         raise HTTPException(status_code=404, detail="No questions available")
 
@@ -333,6 +351,17 @@ async def start_session(payload: StartSessionIn, user=Depends(get_current_user))
         "session_id": sid,
         "age_group": age_group,
         "time_per_question": session_doc["time_per_question"],
+        "total_questions": len(questions),
+        "adaptive_meta": {
+            "avg_prior_score": round(avg_prior, 1) if avg_prior is not None else None,
+            "prior_attempts": len(priors),
+            "seen_questions": len(seen_ids),
+            "difficulty_mix": {
+                "Easy": sum(1 for q in questions if q.get("difficulty_label") == "Easy"),
+                "Medium": sum(1 for q in questions if q.get("difficulty_label") == "Medium"),
+                "Hard": sum(1 for q in questions if q.get("difficulty_label") == "Hard"),
+            },
+        },
         "questions": [public_view(q) for q in questions],
     }
 
@@ -706,11 +735,41 @@ async def progress(child_id: str, user=Depends(get_current_user)):
                 "percentage": round(s["correct"] / s["total"] * 100),
             })
 
+    # Sort by percentage → strengths (top 3 with >=70%) and growth (bottom 3 with <70%)
+    sorted_cp = sorted(category_progress, key=lambda c: c["percentage"], reverse=True)
+    strengths = [c["category"] for c in sorted_cp[:3] if c["percentage"] >= 70]
+    growth_areas = [c["category"] for c in sorted_cp[-3:][::-1] if c["percentage"] < 70]
+
+    # Difficulty progression (avg overall score bucketed to 5 slots)
+    scores = [a["overall_score"] for a in assessments if a.get("overall_score") is not None]
+    avg_overall = round(sum(scores) / len(scores), 1) if scores else None
+    best_overall = max(scores) if scores else None
+
     return {
         "child": {"id": str(child["_id"]), "name": child["name"], "xp": child.get("xp", 0), "stars": child.get("stars", 0), "badges": child.get("badges", [])},
         "timeline": assessments,
         "category_progress": category_progress,
+        "strengths": strengths,
+        "growth_areas": growth_areas,
+        "total_attempts": len(assessments),
+        "avg_overall_score": avg_overall,
+        "best_overall_score": best_overall,
     }
+
+
+# Question bank stats — useful for admin & scale monitoring
+@api_router.get("/assessment/bank-stats")
+async def bank_stats(_=Depends(get_current_user)):
+    from collections import Counter
+    stats = {}
+    for ag in ["3-5", "6-8", "9-12", "13-16"]:
+        qs = [q for q in QUESTIONS if q["age_group"] == ag]
+        stats[ag] = {
+            "total": len(qs),
+            "by_difficulty": dict(Counter(q["difficulty_label"] for q in qs)),
+            "by_category": dict(Counter(q["category"] for q in qs)),
+        }
+    return {"total_questions": len(QUESTIONS), "session_length": SESSION_LENGTH, "age_groups": stats}
 
 
 # ============ NOTIFICATIONS ============

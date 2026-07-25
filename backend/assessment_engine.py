@@ -1,68 +1,159 @@
-"""Adaptive test engine + weighted scoring."""
+"""Adaptive assessment engine (v2).
+
+Session builder:
+  - Selects exactly SESSION_LENGTH (=20) questions per assessment
+  - Balances across 9 primary categories
+  - Adaptive difficulty mix based on child's prior average performance
+  - Minimizes repetition using a `seen_ids` set of previously-answered question IDs
+      · Recently-seen questions get large weight penalty
+      · Older questions gradually re-enter the pool
+  - Deterministic when seed is provided (used for tests / reproducibility)
+
+Scoring:
+  - Weighted overall score = accuracy + difficulty + speed + consistency + attention
+  - Category-level breakdown with strengths & growth areas
+"""
 import random
-from typing import List, Dict
-from questions_data import get_questions_by_age, SESSION_LENGTH, CATEGORIES
+from typing import List, Dict, Iterable, Optional
+from questions_data import get_questions_by_age, SESSION_LENGTH, CATEGORIES, QUESTIONS
+
+# Primary skill categories used for balancing (creativity is bonus, not required)
+PRIMARY_CATEGORIES = [c for c in CATEGORIES if c != "creativity"]
 
 
-def build_adaptive_session(age_group: str, seed: int = None) -> List[dict]:
-    """Pick a balanced, randomized starting set. Adaptive difficulty applies at scoring time.
+def _difficulty_mix(avg_prior_score: Optional[float]) -> Dict[str, int]:
+    """Given the child's rolling avg score (0-100), return the target count of
+    Easy / Medium / Hard questions in the next 20-question session."""
+    if avg_prior_score is None:
+        # First attempt: gentle ramp — mostly easy/medium
+        return {"Easy": 8, "Medium": 8, "Hard": 4}
+    if avg_prior_score >= 80:
+        return {"Easy": 3, "Medium": 8, "Hard": 9}     # push harder
+    if avg_prior_score >= 65:
+        return {"Easy": 5, "Medium": 9, "Hard": 6}     # sweet spot
+    if avg_prior_score >= 50:
+        return {"Easy": 7, "Medium": 9, "Hard": 4}     # balanced
+    return {"Easy": 10, "Medium": 7, "Hard": 3}        # build confidence
 
-    Strategy:
-      - Pull all questions for the age group
-      - Ensure each category is represented if available
-      - Start with difficulty ~2 (medium-low)
-      - Cap length at SESSION_LENGTH[age_group]
-      - Shuffle within selected pool
+
+def build_adaptive_session(
+    age_group: str,
+    seed: Optional[int] = None,
+    seen_ids: Optional[Iterable[str]] = None,
+    avg_prior_score: Optional[float] = None,
+    target: Optional[int] = None,
+) -> List[dict]:
+    """Return exactly `target` (default SESSION_LENGTH) questions for the age group.
+
+    Selection algorithm:
+      1. Compute difficulty mix from prior performance.
+      2. For each difficulty bucket, weight-pick questions such that
+         previously-seen ones have low probability (0.2 vs 1.0).
+      3. Balance across primary categories via round-robin fill.
+      4. Shuffle final order but keep a gentle ramp (Easy first → Hard last).
     """
     if seed is not None:
         random.seed(seed)
+
     pool = get_questions_by_age(age_group)
     if not pool:
         return []
-    target = SESSION_LENGTH.get(age_group, 10)
 
-    # Group by category
-    by_cat: Dict[str, list] = {}
+    target = target or SESSION_LENGTH.get(age_group, 20)
+    seen = set(seen_ids or [])
+    mix = _difficulty_mix(avg_prior_score)
+
+    # Bucket by difficulty label
+    by_diff: Dict[str, list] = {"Easy": [], "Medium": [], "Hard": []}
     for q in pool:
-        by_cat.setdefault(q["category"], []).append(q)
+        by_diff.setdefault(q.get("difficulty_label", "Medium"), []).append(q)
 
-    # Sort each category by difficulty ascending
-    for cat in by_cat:
-        by_cat[cat].sort(key=lambda x: x["difficulty"])
+    # Ensure count feasibility — if a bucket is short, redistribute the deficit
+    total_wanted = sum(mix.values())
+    if total_wanted != target:
+        mix["Medium"] += target - total_wanted
 
-    # Round-robin pick to balance categories
-    selected = []
-    idx = 0
-    cats = list(by_cat.keys())
-    random.shuffle(cats)
-    while len(selected) < target and any(by_cat[c] for c in cats):
-        c = cats[idx % len(cats)]
-        if by_cat[c]:
-            selected.append(by_cat[c].pop(0))
-        idx += 1
+    def weight(q):
+        # Unseen questions get 5× priority
+        return 0.2 if q["id"] in seen else 1.0
 
-    # Shuffle final order but keep gentle ramp (sort by difficulty roughly)
+    def weighted_sample(bucket: list, k: int) -> list:
+        """Weighted random pick without replacement."""
+        if k <= 0 or not bucket:
+            return []
+        # If bucket smaller than requested, fall back to shuffled bucket
+        if len(bucket) <= k:
+            random.shuffle(bucket)
+            return bucket[:]
+        items = list(bucket)
+        weights = [weight(q) for q in items]
+        selected = []
+        for _ in range(k):
+            if not items:
+                break
+            total = sum(weights)
+            r = random.uniform(0, total)
+            acc = 0.0
+            idx = 0
+            for i, w in enumerate(weights):
+                acc += w
+                if r <= acc:
+                    idx = i
+                    break
+            selected.append(items.pop(idx))
+            weights.pop(idx)
+        return selected
+
+    selected: List[dict] = []
+    # Pull the raw mix
+    for label in ("Easy", "Medium", "Hard"):
+        selected.extend(weighted_sample(by_diff.get(label, []), mix.get(label, 0)))
+
+    # Top up if we're short (small pools or missing tier) — pull from remaining unpicked
+    if len(selected) < target:
+        picked_ids = {q["id"] for q in selected}
+        remaining = [q for q in pool if q["id"] not in picked_ids]
+        random.shuffle(remaining)
+        # Prefer unseen
+        remaining.sort(key=lambda q: q["id"] in seen)
+        selected.extend(remaining[: target - len(selected)])
+
+    # ---- Category balance pass ----
+    # If any primary category is completely missing, swap in one of its questions
+    have_cats = {q["category"] for q in selected}
+    missing_primary = [c for c in PRIMARY_CATEGORIES if c not in have_cats]
+    for cat in missing_primary:
+        replacements = [q for q in pool if q["category"] == cat and q["id"] not in {s["id"] for s in selected}]
+        if not replacements:
+            continue
+        replacements.sort(key=lambda q: q["id"] in seen)
+        # Swap out an over-represented category
+        cat_counts: Dict[str, int] = {}
+        for q in selected:
+            cat_counts[q["category"]] = cat_counts.get(q["category"], 0) + 1
+        over_cat = max(cat_counts, key=cat_counts.get)
+        if cat_counts[over_cat] <= 1:
+            continue
+        # find last of over_cat and swap
+        for i in range(len(selected) - 1, -1, -1):
+            if selected[i]["category"] == over_cat:
+                selected[i] = replacements[0]
+                break
+
+    # ---- Final ordering: gentle ramp Easy → Medium → Hard ----
+    order_key = {"Easy": 0, "Medium": 1, "Hard": 2}
     random.shuffle(selected)
-    selected.sort(key=lambda q: q["difficulty"])
+    selected.sort(key=lambda q: order_key.get(q.get("difficulty_label", "Medium"), 1))
+
     return selected[:target]
 
 
 def compute_weighted_score(questions: List[dict], answers: List[int], durations: List[int]) -> dict:
-    """
-    Weighted score based on:
-      - accuracy (correct/total)
-      - speed (avg time vs estimated_time)
-      - difficulty of correctly answered questions
-      - consistency (variance of correctness)
-      - attention (based on speed variance & completion)
-
-    Returns a rich profile including category scores, percentiles, strengths, growth.
-    """
+    """Compute rich profile with category scores, strengths and growth areas."""
     total = len(questions)
     if total == 0:
         return {"error": "no questions"}
 
-    # Per-category tallies
     cat_stats: Dict[str, Dict] = {c: {"correct": 0, "total": 0, "difficulty_earned": 0, "difficulty_max": 0, "time": 0} for c in CATEGORIES}
 
     total_correct = 0
@@ -75,6 +166,7 @@ def compute_weighted_score(questions: List[dict], answers: List[int], durations:
 
     for i, q in enumerate(questions):
         cat = q["category"]
+        cat_stats.setdefault(cat, {"correct": 0, "total": 0, "difficulty_earned": 0, "difficulty_max": 0, "time": 0})
         cat_stats[cat]["total"] += 1
         cat_stats[cat]["difficulty_max"] += q["difficulty"]
         total_difficulty_max += q["difficulty"]
@@ -87,7 +179,7 @@ def compute_weighted_score(questions: List[dict], answers: List[int], durations:
         dur = durations[i] if i < len(durations) else q["estimated_time"]
         cat_stats[cat]["time"] += dur
         est = max(1, q["estimated_time"])
-        speed_ratios.append(min(2.0, est / max(1, dur)))  # higher = faster than expected
+        speed_ratios.append(min(2.0, est / max(1, dur)))
 
         if is_correct:
             total_correct += 1
@@ -99,19 +191,16 @@ def compute_weighted_score(questions: List[dict], answers: List[int], durations:
     accuracy = total_correct / total if total else 0
     difficulty_score = total_difficulty_earned / total_difficulty_max if total_difficulty_max else 0
 
-    # Speed score: avg ratio capped 0..1.5 → normalize to 0..1
     avg_speed_ratio = sum(speed_ratios) / len(speed_ratios) if speed_ratios else 1.0
-    speed_score = max(0.0, min(1.0, (avg_speed_ratio) / 1.5))
+    speed_score = max(0.0, min(1.0, avg_speed_ratio / 1.5))
 
-    # Consistency: 1 - std deviation of correctness
     if len(correct_flags) > 1:
         mean_c = sum(correct_flags) / len(correct_flags)
         var = sum((c - mean_c) ** 2 for c in correct_flags) / len(correct_flags)
-        consistency = 1.0 - min(1.0, var * 4)  # var max at 0.25 for random -> 0
+        consistency = 1.0 - min(1.0, var * 4)
     else:
         consistency = 1.0
 
-    # Attention: less variance in speed = better focus
     if len(speed_ratios) > 1:
         mean_s = sum(speed_ratios) / len(speed_ratios)
         var_s = sum((s - mean_s) ** 2 for s in speed_ratios) / len(speed_ratios)
@@ -119,7 +208,6 @@ def compute_weighted_score(questions: List[dict], answers: List[int], durations:
     else:
         attention = 1.0
 
-    # Weighted overall (0..1)
     overall = (
         accuracy * 0.40
         + difficulty_score * 0.25
@@ -128,14 +216,9 @@ def compute_weighted_score(questions: List[dict], answers: List[int], durations:
         + attention * 0.10
     )
     overall_pct = round(overall * 100)
-
-    # Estimated cognitive index (80 - 130 educational estimate, NOT clinical IQ)
     estimated_index = round(80 + overall * 50)
-
-    # Percentile (heuristic, educational only)
     percentile = min(99, max(1, round(overall * 100)))
 
-    # Category percentages + percentiles
     category_scores = {}
     for cat, s in cat_stats.items():
         if s["total"] == 0:
@@ -151,10 +234,9 @@ def compute_weighted_score(questions: List[dict], answers: List[int], durations:
             "percentile": min(99, max(1, round(cat_score * 100))),
         }
 
-    # Strengths & growth areas (top 3 / bottom 3 by score)
     sorted_cats = sorted(category_scores.items(), key=lambda x: x[1]["score"], reverse=True)
     strengths = [c for c, _ in sorted_cats[:3]]
-    growth = [c for c, _ in sorted_cats[-3:][::-1] if _["score"] < 70]
+    growth = [c for c, v in sorted_cats[-3:][::-1] if v["score"] < 70]
 
     return {
         "overall_score": overall_pct,
