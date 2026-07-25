@@ -15,6 +15,18 @@ Premium SaaS for parent-supervised brain-skills assessments for kids 3–16. Edu
 ### v4.1 ✅ Age-Adaptive Brain Games Hub (2026-02)
 ### v4.2 ✅ Assessment & Question Bank v2 (2026-02)
 ### v4.3 ✅ Child Dashboard + Report v2 (2026-02)
+### v4.4 ✅ Auth v2 — Google Sign-In + Email Verification + Password Reset (2026-02)
+- **Emergent-managed Google Sign-In** for parents (button on Login + Register → `auth.emergentagent.com` → `/auth/callback` handles `#session_id=` fragment)
+- **Email verification** with hard-lock: unverified users get 403 `email_verification_required` on `/children`, `/sessions/start|submit`, `/games/score`; frontend `Protected` route redirects them to `/verify-email-required`
+- **Password reset** flow (1-hour token TTL): `/forgot-password` + `/reset-password?token=` pages; enumeration-safe (always returns ok)
+- **Resend** integration for real email delivery (sender `onboarding@resend.dev`)
+- **Two-cookie auth**: `access_token` (JWT for email/password) OR `session_token` (Emergent Google) — `get_current_user` accepts both
+- **Google users are auto-verified**; existing users backfilled to `email_verified:true`
+- **New DB collections**: `verification_tokens`, `password_reset_tokens`, `user_sessions` (all indexed)
+- **Endpoints**: `POST /api/auth/send-verification`, `GET /api/auth/verify-email/{token}`, `POST /api/auth/forgot-password`, `POST /api/auth/reset-password`, `POST /api/auth/google/session`
+- **Fixed**: timezone-naive vs tz-aware datetime comparison in cooldown check
+- Tested: 14/14 backend pytest + 10/10 frontend Playwright (iteration_8.json); no regressions
+
 - **Child Dashboard reordered** into 9 sections: Welcome → Level/XP/Coins/Streak stats → Today's Mission → Continue/Start Assessment → Featured Brain Games (5 gradient cards with Play Now) → Brain Skills Tests history → Achievements & Badges → Progress Overview → Daily Reward
 - **Brain Games featured prominently on dashboard** (5 age-appropriate colorful cards, 1-tap play)
 - **Report expanded to 12 sections**: Overall score, Category-wise Scores, Strengths, Areas for Improvement, Personalized Tips, Daily Practice Suggestions, Weekly Goals, Parent Guidance, Recommended Brain Games (3), Recommended Next Assessment (X days), XP/Levels/Badges/Progress, AI Insights
