@@ -1,0 +1,57 @@
+{
+  "summary": "Auth v2 (email verification hard-lock, Resend, forgot/reset password 1hr expiry, Emergent Google Sign-In UI) — end-to-end tested. 14/14 backend pytest passed (after fixing 1 real backend bug), 10/10 frontend Playwright checks passed. Existing parent regression clean.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/send-verification & /api/auth/forgot-password", "issue": "FIXED — TypeError: can't subtract offset-naive and offset-aware datetimes. MongoDB returns `created_at` as naive UTC while `_now()` is tz-aware, causing 500s on cooldown check. Patched auth_v2_router.py to coerce naive->aware before subtraction."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_auth_v2.py",
+    "/app/test_reports/pytest/auth_v2_results.xml"
+  ],
+  "action_items": [
+    "None blocking. Backend bug fixed inline. Consider audit-logging non-2xx Resend responses (currently swallowed to ERROR: string in emails_sent.provider_id — fine for now)."
+  ],
+  "critical_code_review_comments": [
+    "auth_v2_router.py: cooldown datetime comparison had timezone-naive/aware mismatch (fixed). Apply same defensive coercion to any future datetime comparison against Mongo-returned dates.",
+    "server.py register(): verification-token DB insert + email send is wrapped in a single silent try/except — an actual DB error would be swallowed. Consider logging exceptions to help future debugging.",
+    "Resend free tier restricts non-verified recipients to the account owner's address. In current preview, emails to @example.com return provider error but token IS still persisted so verify-email flow still works via direct link. Fine for dev; document this before production."
+  ],
+  "updated_files": [
+    "/app/backend/auth_v2_router.py (cooldown datetime tz fix — 2 spots)",
+    "/app/backend/tests/test_auth_v2.py (new file — 14 tests)"
+  ],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% (10/10)"},
+  "test_credentials": "parent@test.com / Parent@12345 (verified), admin@kidsiqtest.com / Admin@12345. Fresh unverified users registered on-the-fly as TEST_v2_<epoch>_<uuid>@example.com / Passw0rd!123.",
+  "seed_data_creation": "Multiple TEST_ prefixed users created via register endpoint. Verification tokens & password_reset_tokens persisted in db.verification_tokens and db.password_reset_tokens. Emails logged to db.emails_sent with Resend provider_id (or ERROR: string for @example.com bounces).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All auth v2 flows verified end-to-end. Backend tests live at /app/backend/tests/test_auth_v2.py — run with `python -m pytest backend/tests/test_auth_v2.py -v -o addopts=''` (pytest.ini uses xdist by default; -o overrides). Google Sign-In is not fully e2e-testable in headless — only the redirect to https://auth.emergentagent.com is verified. Frontend /verify-email?token=... success card disappears in <1.8s (setTimeout redirect to /dashboard); if catching it, use a very short polling loop or freeze the network response. DB uses `test_database` name.",
+  "verified_flows": [
+    "POST /api/auth/register → email_verified:false + verification token inserted + emails_sent audit row with provider_id",
+    "POST /api/children on unverified → 403 email_verification_required",
+    "POST /api/sessions/start on unverified → 403 email_verification_required",
+    "GET /api/auth/verify-email/{token} → sets email_verified:true; re-use → 400; nonexistent token → 400",
+    "After verify: POST /api/children → 200 (hard-lock lifted)",
+    "POST /api/auth/send-verification twice within 60s → 429",
+    "POST /api/auth/forgot-password (real & fake email) → {ok:true}; token TTL ~3600s",
+    "POST /api/auth/reset-password with valid token → 200 + new login works + other outstanding tokens invalidated",
+    "POST /api/auth/reset-password with password<8 → 400; invalid token → 400",
+    "POST /api/auth/logout → clears cookies + subsequent /auth/me → 401",
+    "GET /api/auth/me returns email_verified, google_linked, picture, is_premium, assessment_credits",
+    "Existing parent@test.com login + list children still 200 (regression clean)",
+    "Frontend /login: link-to-forgot-password + login-google-btn present",
+    "Frontend /register: register-google-btn present; submit → /verify-email-required",
+    "Frontend /verify-email-required: resend-verify-btn + verify-logout-btn present; unverified /dashboard → redirect here (Protected hard-lock)",
+    "Frontend /forgot-password submit → fp-sent success card",
+    "Frontend /reset-password (no token) → rp-no-token warning",
+    "Frontend /login → Continue with Google redirects to https://auth.emergentagent.com/oauth/?redirect=...",
+    "Regression: parent@test.com login → dashboard renders with 2 children/3 assessments/198 XP/142 coins"
+  ]
+}

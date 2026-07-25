@@ -8,6 +8,11 @@ import PageTracker from "@/components/PageTracker";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
+import VerifyEmail from "@/pages/VerifyEmail";
+import VerifyEmailRequired from "@/pages/VerifyEmailRequired";
+import AuthCallback from "@/pages/AuthCallback";
 import Dashboard from "@/pages/Dashboard";
 import CreateChild from "@/pages/CreateChild";
 import ChildProfile from "@/pages/ChildProfile";
@@ -30,6 +35,17 @@ function Protected({ children }) {
   const { user, loading } = useAuth();
   if (loading || user === null) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
+  // Hard-lock: require email verification (Google-linked users are auto-verified server-side)
+  if (user.email_verified === false) return <Navigate to="/verify-email-required" replace />;
+  return children;
+}
+
+function VerifyGate({ children }) {
+  // Used for the "verify-email-required" page — must be logged in but NOT verified.
+  const { user, loading } = useAuth();
+  if (loading || user === null) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading...</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.email_verified) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
@@ -43,6 +59,11 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/verify-email-required" element={<VerifyGate><VerifyEmailRequired /></VerifyGate>} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />

@@ -80,28 +80,54 @@ def set_auth_cookies(response: Response, access: str, refresh: str):
 
 
 async def get_current_user(request: Request) -> dict:
+    # Try JWT (access_token cookie / Bearer) first — existing email/password flow
     token = request.cookies.get("access_token")
     if not token:
         auth = request.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
             token = auth[7:]
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    try:
-        payload = pyjwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
-        if payload.get("type") != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        user["id"] = str(user["_id"])
-        user.pop("_id", None)
-        user.pop("password_hash", None)
+    if token:
+        try:
+            payload = pyjwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+            if payload.get("type") != "access":
+                raise HTTPException(status_code=401, detail="Invalid token type")
+            user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
+            if not user:
+                raise HTTPException(status_code=401, detail="User not found")
+            user["id"] = str(user["_id"])
+            user.pop("_id", None); user.pop("password_hash", None)
+            return user
+        except pyjwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except pyjwt.InvalidTokenError:
+            pass  # fall through to session_token below
+
+    # Try Emergent Google session_token cookie
+    session_token = request.cookies.get("session_token")
+    if session_token:
+        sess = await db.user_sessions.find_one({"session_token": session_token})
+        if sess:
+            exp = sess.get("expires_at")
+            if isinstance(exp, str):
+                exp = datetime.fromisoformat(exp)
+            if exp and exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            if exp and exp >= datetime.now(timezone.utc):
+                user = await db.users.find_one({"_id": ObjectId(sess["user_id"])})
+                if user:
+                    user["id"] = str(user["_id"])
+                    user.pop("_id", None); user.pop("password_hash", None)
+                    return user
+
+    raise HTTPException(status_code=401, detail="Not authenticated")
+
+
+async def require_verified_user(user=Depends(get_current_user)) -> dict:
+    """Enforce hard-lock: block sensitive routes until email is verified."""
+    # Google-linked users are auto-verified; admin is exempt too
+    if user.get("email_verified") or user.get("role") == "admin":
         return user
-    except pyjwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except pyjwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    raise HTTPException(status_code=403, detail="email_verification_required")
 
 
 async def require_admin(user=Depends(get_current_user)):
@@ -193,6 +219,7 @@ async def register(payload: RegisterIn, response: Response):
         "email": email, "name": payload.name.strip(),
         "password_hash": hash_password(payload.password),
         "role": "parent",
+        "email_verified": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "xp": 0, "coins": 50,
     }
@@ -200,8 +227,31 @@ async def register(payload: RegisterIn, response: Response):
     uid = str(result.inserted_id)
     access, refresh = create_access_token(uid, email), create_refresh_token(uid)
     set_auth_cookies(response, access, refresh)
-    await push_notification(uid, "welcome", "Welcome to Kids IQ Test!", "Create your first child profile to get started.", "/dashboard")
-    return {"id": uid, "email": email, "name": doc["name"], "role": "parent", "xp": 0, "coins": 50}
+    await push_notification(uid, "welcome", "Welcome to Kids IQ Test!", "Please verify your email to unlock the dashboard.", "/dashboard")
+    # Fire-and-forget: send verification email
+    try:
+        from auth_v2_router import _new_token, _brand_email, _send_email, VERIFICATION_TTL_HOURS
+        token = _new_token()
+        await db.verification_tokens.insert_one({
+            "user_id": uid, "email": email, "token": token,
+            "expires_at": datetime.now(timezone.utc) + timedelta(hours=VERIFICATION_TTL_HOURS),
+            "used": False, "created_at": datetime.now(timezone.utc),
+        })
+        link = f'{os.environ.get("FRONTEND_URL", "").rstrip("/")}/verify-email?token={token}'
+        html = _brand_email(
+            title=f"Welcome, {doc['name']}! 🎉  Verify your email",
+            body_html="Tap the button below to verify your email and unlock your Kids IQ Test dashboard.",
+            cta_url=link, cta_label="Verify my email",
+        )
+        provider_id = await _send_email(email, "Verify your Kids IQ Test email", html)
+        await db.emails_sent.insert_one({
+            "kind": "verify_email", "to": email, "link": link,
+            "provider_id": provider_id, "created_at": datetime.now(timezone.utc),
+        })
+    except Exception:
+        pass
+    return {"id": uid, "email": email, "name": doc["name"], "role": "parent",
+            "xp": 0, "coins": 50, "email_verified": False}
 
 
 @api_router.post("/auth/login")
@@ -225,17 +275,25 @@ async def login(payload: LoginIn, request: Request, response: Response):
 
 
 @api_router.post("/auth/logout")
-async def logout(response: Response):
+async def logout(request: Request, response: Response):
+    # Delete Emergent session record (if any) before clearing cookies
+    st = request.cookies.get("session_token")
+    if st:
+        await db.user_sessions.delete_one({"session_token": st})
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/")
+    response.delete_cookie("session_token", path="/")
     return {"ok": True}
 
 
 @api_router.get("/auth/me")
 async def me(user=Depends(get_current_user)):
-    # Include assessment_credits + active subscription flag
+    # Include assessment_credits + active subscription flag + email verification
     raw = await db.users.find_one({"_id": ObjectId(user["id"])})
     user["assessment_credits"] = int((raw or {}).get("assessment_credits", 0))
+    user["email_verified"] = bool((raw or {}).get("email_verified"))
+    user["google_linked"] = bool((raw or {}).get("google_linked"))
+    user["picture"] = (raw or {}).get("picture")
     sub = await db.subscriptions.find_one({"user_id": user["id"], "active": True})
     user["is_premium"] = bool(sub)
     if sub:
@@ -246,7 +304,7 @@ async def me(user=Depends(get_current_user)):
 
 # ============ CHILDREN ============
 @api_router.post("/children")
-async def create_child(payload: ChildIn, user=Depends(get_current_user)):
+async def create_child(payload: ChildIn, user=Depends(require_verified_user)):
     doc = payload.model_dump()
     doc["parent_id"] = user["id"]
     doc["age_group"] = age_to_group(payload.age)
@@ -306,7 +364,7 @@ async def get_assessment_questions(age_group: str, user=Depends(get_current_user
 
 # ============ ASSESSMENT SESSIONS (adaptive) ============
 @api_router.post("/sessions/start")
-async def start_session(payload: StartSessionIn, user=Depends(get_current_user)):
+async def start_session(payload: StartSessionIn, user=Depends(require_verified_user)):
     try:
         child = await db.children.find_one({"_id": ObjectId(payload.child_id), "parent_id": user["id"]})
     except Exception:
@@ -367,7 +425,7 @@ async def start_session(payload: StartSessionIn, user=Depends(get_current_user))
 
 
 @api_router.post("/sessions/submit")
-async def submit_session(payload: SubmitSessionIn, user=Depends(get_current_user)):
+async def submit_session(payload: SubmitSessionIn, user=Depends(require_verified_user)):
     try:
         sess = await db.assessment_sessions.find_one({"_id": ObjectId(payload.session_id), "parent_id": user["id"]})
     except Exception:
@@ -666,7 +724,7 @@ async def game_detail(game_key: str, _=Depends(get_current_user)):
 
 
 @api_router.post("/games/score")
-async def save_game_score(payload: BrainGameScoreIn, user=Depends(get_current_user)):
+async def save_game_score(payload: BrainGameScoreIn, user=Depends(require_verified_user)):
     try:
         child = await db.children.find_one({"_id": ObjectId(payload.child_id), "parent_id": user["id"]})
     except Exception:
@@ -895,6 +953,7 @@ async def startup():
         await db.users.insert_one({
             "email": admin_email, "password_hash": hash_password(admin_pw),
             "name": "Admin", "role": "admin",
+            "email_verified": True,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "xp": 0, "coins": 0,
         })
@@ -902,9 +961,20 @@ async def startup():
         await db.users.insert_one({
             "email": "parent@test.com", "password_hash": hash_password("Parent@12345"),
             "name": "Test Parent", "role": "parent",
+            "email_verified": True,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "xp": 0, "coins": 50,
         })
+
+    # Backfill: existing users without email_verified default to True (grandfather them in)
+    await db.users.update_many({"email_verified": {"$exists": False}}, {"$set": {"email_verified": True}})
+    # Indexes for new auth v2 collections
+    await db.verification_tokens.create_index("token", unique=True)
+    await db.verification_tokens.create_index("email")
+    await db.password_reset_tokens.create_index("token", unique=True)
+    await db.password_reset_tokens.create_index("email")
+    await db.user_sessions.create_index("session_token", unique=True)
+    await db.user_sessions.create_index("user_id")
 
 
 @app.on_event("shutdown")
@@ -913,6 +983,10 @@ async def shutdown_db_client():
 
 
 app.include_router(api_router)
+
+# Auth v2 (Google Sign-In, Email verification, Password reset)
+from auth_v2_router import build_auth_v2_router
+app.include_router(build_auth_v2_router(db, get_current_user, push_notification))
 
 # Part 3 SaaS routes (admin, payments, blog, analytics, coupons)
 app.include_router(build_saas_router(db, require_admin, get_current_user, push_notification))

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Brain, Mail, Lock, User, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 export default function Register() {
   const { register } = useAuth();
@@ -25,8 +26,9 @@ export default function Register() {
     const res = await register(name, email, password);
     setLoading(false);
     if (res.ok) {
-      toast.success("Account created — let's create your first child profile!");
-      navigate("/dashboard/child/new");
+      toast.success("Account created! Please verify your email to continue.");
+      // Backend requires verification for dashboard access → land on the verify-required page
+      navigate("/verify-email-required");
     } else {
       setError(res.error);
     }
@@ -79,6 +81,14 @@ export default function Register() {
               {loading ? "Creating..." : (<><Sparkles className="w-4 h-4 mr-2" /> Create account</>)}
             </Button>
           </form>
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-border"></div>
+            <span className="text-xs font-bold uppercase text-muted-foreground tracking-widest">or</span>
+            <div className="h-px flex-1 bg-border"></div>
+          </div>
+          <GoogleSignInButton testid="register-google-btn" />
+
           <p className="text-sm text-center mt-5 text-muted-foreground">
             Already have an account?{" "}
             <Link to="/login" className="text-primary font-bold hover:underline" data-testid="link-to-login">Log in</Link>

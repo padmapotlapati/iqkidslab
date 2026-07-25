@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Brain, Mail, Lock, LogIn } from "lucide-react";
 import { toast } from "sonner";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 export default function Login() {
   const { login } = useAuth();
@@ -57,7 +58,12 @@ export default function Login() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="font-bold">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="font-bold">Password</Label>
+                <Link to="/forgot-password" className="text-xs font-bold text-primary hover:underline" data-testid="link-to-forgot-password">
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
@@ -72,6 +78,14 @@ export default function Login() {
               {loading ? "Logging in..." : (<><LogIn className="w-4 h-4 mr-2" /> Log in</>)}
             </Button>
           </form>
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-border"></div>
+            <span className="text-xs font-bold uppercase text-muted-foreground tracking-widest">or</span>
+            <div className="h-px flex-1 bg-border"></div>
+          </div>
+          <GoogleSignInButton testid="login-google-btn" />
+
           <p className="text-sm text-center mt-5 text-muted-foreground">
             No account yet?{" "}
             <Link to="/register" className="text-primary font-bold hover:underline" data-testid="link-to-register">Create one</Link>
