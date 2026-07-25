@@ -114,6 +114,97 @@ def build_report_pdf(child: dict, assessment: dict, ai_report: str) -> bytes:
     ]))
     story.append(cat_tbl)
 
+    # ---- Strengths & Areas for Improvement ----
+    strengths = assessment.get("strengths") or []
+    growth = assessment.get("growth_areas") or []
+    if strengths or growth:
+        story.append(Paragraph("Strengths &amp; Areas for Improvement", st["H2x"]))
+        sg_rows = [["Strengths", "Areas for Improvement"],
+                   [", ".join([CATEGORY_LABELS.get(s, s) for s in strengths]) or "—",
+                    ", ".join([CATEGORY_LABELS.get(g, g) for g in growth]) or "Well-rounded — keep going!"]]
+        sg_tbl = Table(sg_rows, colWidths=[77 * mm, 77 * mm])
+        sg_tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#10B981")),
+            ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#F97316")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 10),
+            ("FONTSIZE", (0, 1), (-1, 1), 10),
+            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+            ("BACKGROUND", (0, 1), (0, 1), colors.HexColor("#ECFDF5")),
+            ("BACKGROUND", (1, 1), (1, 1), colors.HexColor("#FFF7ED")),
+        ]))
+        story.append(sg_tbl)
+
+    # ---- Personalized Tips ----
+    tips_map = {
+        "memory": "Play card-matching games and recite grocery lists to strengthen short-term recall.",
+        "logical_reasoning": "Solve one Sudoku or logic riddle daily — start easy and build up.",
+        "pattern_recognition": "Look for number and shape patterns in everyday objects (tiles, music).",
+        "visual_intelligence": "Try puzzle building or spot-the-difference games for 10 minutes.",
+        "attention": "Practice focused reading — 15-minute distraction-free sessions.",
+        "processing_speed": "Timed mental-math drills for 5 minutes daily boost speed.",
+        "problem_solving": "Try one word problem or riddle before bed to stretch reasoning.",
+        "mathematical_thinking": "Practice fractions/percentages using real-life examples (recipes, prices).",
+        "language_skills": "Read for 20 minutes daily and note 3 new words each day.",
+        "creativity": "Brainstorm 5 uses for a household object every morning.",
+    }
+    parent_map = {
+        "memory": "Play memory games together; encourage retelling stories with details.",
+        "logical_reasoning": "Ask 'why' and 'what if' questions during casual conversations.",
+        "pattern_recognition": "Point out patterns in nature, music, or architecture together.",
+        "visual_intelligence": "Do jigsaw puzzles or draw side-by-side.",
+        "attention": "Establish quiet-time routines; celebrate focused practice.",
+        "processing_speed": "Turn mental math into a fun daily race.",
+        "problem_solving": "Involve them in real-world planning (packing a trip, budget).",
+        "mathematical_thinking": "Cook together — measuring/scaling is math practice.",
+        "language_skills": "Read aloud together; discuss the story afterwards.",
+        "creativity": "Encourage open-ended play with blocks or drawing.",
+    }
+    focus = growth[:3] if growth else strengths[:3]
+
+    if focus:
+        story.append(Paragraph("Personalized Tips", st["H2x"]))
+        for cat in focus:
+            story.append(Paragraph(
+                f"<b>{CATEGORY_LABELS.get(cat, cat)}:</b> {tips_map.get(cat, 'Stay curious and keep exploring!')}",
+                st["BodyX"],
+            ))
+
+    # ---- Daily Practice Suggestions ----
+    story.append(Paragraph("Daily Practice Suggestions", st["H2x"]))
+    for item in [
+        "<b>Morning:</b> 3 quick riddles or brain teasers",
+        "<b>Afternoon:</b> 15-20 minutes of reading + 2 new words",
+        "<b>Evening:</b> 5-10 minutes of a Brain Skills game",
+        "<b>Before bed:</b> Reflect on 1 thing learned today",
+    ]:
+        story.append(Paragraph(f"• {item}", st["BodyX"]))
+
+    # ---- Weekly Goals ----
+    story.append(Paragraph("Weekly Goals", st["H2x"]))
+    goal_items = []
+    for g in (growth[:2] or []):
+        goal_items.append(f"Improve {CATEGORY_LABELS.get(g, g)} score by ~10% this week")
+    goal_items.append("Complete at least 3 brain games this week")
+    goal_items.append("Play any game 5 days in a row (build the streak)")
+    for gi in goal_items:
+        story.append(Paragraph(f"✓ {gi}", st["BodyX"]))
+
+    # ---- Parent Guidance ----
+    if focus:
+        story.append(Paragraph("Parent Guidance", st["H2x"]))
+        for cat in focus:
+            story.append(Paragraph(
+                f"<b>{CATEGORY_LABELS.get(cat, cat)}:</b> {parent_map.get(cat, 'Encourage curiosity and celebrate every small win.')}",
+                st["BodyX"],
+            ))
+
     # AI Insights (parsed markdown-ish)
     story.append(Paragraph("AI Learning Insights", st["H2x"]))
     for line in (ai_report or "").split("\n"):

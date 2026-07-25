@@ -553,10 +553,37 @@ async def download_assessment_pdf(assessment_id: str, user=Depends(get_current_u
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid id")
     if not a: raise HTTPException(status_code=404, detail="Not found")
+
+    # Gate: PDF download requires Premium subscription or a purchased credit
+    raw_user = await db.users.find_one({"_id": ObjectId(user["id"])})
+    credits = int((raw_user or {}).get("assessment_credits", 0))
+    sub = await db.subscriptions.find_one({"user_id": user["id"], "active": True})
+    is_premium = bool(sub)
+    if not is_premium and credits <= 0:
+        raise HTTPException(status_code=403, detail="Premium or an assessment credit is required to download the PDF report.")
+
     child = await db.children.find_one({"_id": ObjectId(a["child_id"])})
     pdf_bytes = build_report_pdf(child or {}, a, a.get("ai_report", ""))
     return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="brain-skills-report-{assessment_id}.pdf"'})
+
+
+# Returns an in-progress session for this child if one exists (used by Child Dashboard)
+@api_router.get("/sessions/in-progress/{child_id}")
+async def in_progress_session(child_id: str, user=Depends(get_current_user)):
+    sess = await db.assessment_sessions.find_one(
+        {"child_id": child_id, "parent_id": user["id"], "status": "in_progress"},
+        sort=[("started_at", -1)],
+    )
+    if not sess:
+        return {"in_progress": False}
+    return {
+        "in_progress": True,
+        "session_id": str(sess["_id"]),
+        "age_group": sess.get("age_group"),
+        "started_at": sess.get("started_at"),
+        "total_questions": len(sess.get("question_ids", []) or []),
+    }
 
 
 # ============ CERTIFICATES ============
