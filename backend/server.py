@@ -27,6 +27,7 @@ from questions_data import (
 from assessment_engine import build_adaptive_session, compute_weighted_score
 from pdf_generator import build_report_pdf, build_certificate_pdf
 from saas_router import build_router as build_saas_router
+from engagement_router import build_engagement_router
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
@@ -766,6 +767,9 @@ app.include_router(api_router)
 
 # Part 3 SaaS routes (admin, payments, blog, analytics, coupons)
 app.include_router(build_saas_router(db, require_admin, get_current_user, push_notification))
+
+# Part 4 Engagement routes (streaks, daily challenge, rewards, missions, avatars, timeline, AI suggestions)
+app.include_router(build_engagement_router(db, get_current_user, push_notification))
 
 # Rate limiting: limit login/register to prevent brute force
 app.state.limiter = limiter

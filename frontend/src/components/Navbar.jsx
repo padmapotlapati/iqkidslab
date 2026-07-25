@@ -2,7 +2,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon, Brain, LogOut, LayoutDashboard, Menu, X, Bell, Award, TrendingUp, Gamepad2 } from "lucide-react";
+import { Sun, Moon, Brain, LogOut, LayoutDashboard, Menu, X, Bell, Award, TrendingUp, Gamepad2, Gift } from "lucide-react";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import {
@@ -20,6 +20,7 @@ const publicLinks = [
 
 const authLinks = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/dashboard/rewards", label: "Rewards", icon: Gift },
   { to: "/dashboard/games", label: "Brain Games", icon: Gamepad2 },
   { to: "/dashboard/progress", label: "Progress", icon: TrendingUp },
   { to: "/dashboard/certificates", label: "Certificates", icon: Award },
@@ -139,6 +140,9 @@ export default function Navbar() {
                 <DropdownMenuContent align="end" className="w-52 rounded-2xl">
                   <DropdownMenuItem onClick={() => navigate("/dashboard")} data-testid="menu-dashboard">
                     <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/dashboard/rewards")}>
+                    <Gift className="w-4 h-4 mr-2" /> Rewards
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/dashboard/games")}>
                     <Gamepad2 className="w-4 h-4 mr-2" /> Brain Games

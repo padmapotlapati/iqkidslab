@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ total_children: 0, total_assessments: 0, recent_assessments: [] });
   const [loading, setLoading] = useState(true);
   const [referral, setReferral] = useState(null);
+  const [streaks, setStreaks] = useState({}); // childId -> streak data
 
   useEffect(() => {
     (async () => {
@@ -32,6 +33,15 @@ export default function Dashboard() {
         setChildren(c.data);
         setStats(s.data);
         setReferral(r.data);
+        // Load streaks for each child
+        const streakData = {};
+        await Promise.all(c.data.map(async (child) => {
+          try {
+            const { data } = await api.get(`/streak/${child.id}`);
+            streakData[child.id] = data;
+          } catch {}
+        }));
+        setStreaks(streakData);
       } catch { toast.error("Could not load dashboard."); }
       setLoading(false);
     })();
@@ -99,6 +109,23 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Daily Rewards CTA */}
+        {children.length > 0 && (
+          <div className="mt-8 rounded-3xl p-6 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white lift-shadow flex flex-col sm:flex-row items-center justify-between gap-4" data-testid="rewards-cta-banner">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-3xl bg-white/20 grid place-items-center backdrop-blur">
+                <Gift className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <p className="font-display font-black text-xl">Daily rewards, streaks & mystery boxes</p>
+                <p className="text-xs text-white/90">Play the 5-minute Daily Brain Challenge and claim today&apos;s bonus.</p>
+              </div>
+            </div>
+            <Link to="/dashboard/rewards"><Button className="pill-btn bg-white text-orange-700 hover:bg-white/90 font-black" data-testid="dashboard-rewards-btn">
+              <Sparkles className="w-4 h-4 mr-2" /> Open rewards
+            </Button></Link>
+          </div>
+        )}
         {/* STATS */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
           <StatCard icon={Users} label="Children" value={stats.total_children} color="from-blue-500 to-cyan-500" testid="stat-children" />
@@ -143,6 +170,11 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2 mt-3 flex-wrap">
                       <Badge variant="secondary" className="rounded-full"><Zap className="w-3 h-3 mr-1" /> {c.xp || 0} XP</Badge>
                       <Badge variant="secondary" className="rounded-full">⭐ {c.stars || 0}</Badge>
+                      {streaks[c.id]?.current_streak > 0 && (
+                        <Badge className="rounded-full bg-orange-100 text-orange-800 hover:bg-orange-100 border-0 font-bold" data-testid={`streak-${c.id}`}>
+                          🔥 {streaks[c.id].current_streak}d
+                        </Badge>
+                      )}
                       {(c.badges || []).length > 0 && (
                         <Badge className="rounded-full bg-yellow-400 text-yellow-900 hover:bg-yellow-400">{c.badges.length} badges</Badge>
                       )}

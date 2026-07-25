@@ -17,6 +17,9 @@ import BrainGames from "@/pages/BrainGames";
 import BrainGamePlay from "@/pages/BrainGamePlay";
 import Certificates from "@/pages/Certificates";
 import ProgressPage from "@/pages/ProgressPage";
+import Rewards from "@/pages/Rewards";
+import Timeline from "@/pages/Timeline";
+import DailyChallenge from "@/pages/DailyChallenge";
 import Admin from "@/pages/Admin";
 import Pricing from "@/pages/Pricing";
 import { PaymentSuccess, PaymentCancel } from "@/pages/Payment";
@@ -60,6 +63,9 @@ function App() {
             <Route path="/dashboard/games/:gameKey" element={<Protected><BrainGamePlay /></Protected>} />
             <Route path="/dashboard/certificates" element={<Protected><Certificates /></Protected>} />
             <Route path="/dashboard/progress" element={<Protected><ProgressPage /></Protected>} />
+            <Route path="/dashboard/rewards" element={<Protected><Rewards /></Protected>} />
+            <Route path="/dashboard/timeline" element={<Protected><Timeline /></Protected>} />
+            <Route path="/dashboard/daily-challenge" element={<Protected><DailyChallenge /></Protected>} />
             <Route path="/admin" element={<Protected><Admin /></Protected>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
