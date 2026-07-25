@@ -12,6 +12,20 @@ Premium SaaS for parent-supervised brain-skills assessments for kids 3–16. Edu
 ## Implementation Status
 ### v1 ✅ MVP · v2 ✅ Advanced engine · v3 ✅ SaaS · v3.1 ✅ INR Monetization
 ### v4 ✅ Engagement & Retention System
+### v4.1 ✅ Age-Adaptive Brain Games Hub (2026-02)
+- Backend catalog now serves **5 curated games per age group (20 total)** with `difficulty_label` (Easy / Medium / Hard) tiers
+  - Ages 3–5: Color Match · Baby Memory · Shape Sort · Copy Me · Next Color
+  - Ages 6–8: Reaction Tap · Memory Match · Math Sprint · Rhyme Time · Simon Says
+  - Ages 9–12: Math Dash · Number Series · Word Scramble · Memory Chain · Logic Flow
+  - Ages 13–16: Math Blitz · Anagram Ace · Sequence Sage · Deep Logic · Stroop Test
+- New endpoint `GET /api/games?age=<int>` auto-maps age → age_group
+- New endpoint `GET /api/games/detail/{game_key}` returns full metadata (engine + variant + difficulty_label)
+- `POST /api/games/score` now returns `{xp_earned, coins_earned, streak}` — awards coins, bumps streak, writes timeline entry
+- 4 new frontend engines: **ColorMatch** (incl. Stroop variant), **SequenceRecall** (Simon-Says), **OddOneOut**, **WordScramble**
+- `/dashboard/games` auto-filters by selected child's age and groups games under Easy / Medium / Hard sections
+- Play screen shows reward badges (+XP, +Coins, streak) with confetti
+- Tested end-to-end (backend 12/12, all 4 new engines verified) — iteration_5.json
+
 - **Streaks**: current/longest/days_this_week tracking, resets after >1 day gap, active_dates array, 7/30/100-day milestones with bonus XP + coins + notification + timeline entry
 - **Daily Login Rewards**: 7-day ladder [10,15,20,25,30,40,50 XP] + 5 coins/day, cannot re-claim same day (400), auto-bumps streak
 - **Daily Brain Challenge**: 5 deterministic questions per (date, age_group), scored with XP + coins + streak bump, one submission/day (400 on retry)
