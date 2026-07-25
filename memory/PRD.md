@@ -14,6 +14,17 @@ Premium SaaS for parent-supervised brain-skills assessments for kids 3–16. Edu
 ### v4 ✅ Engagement & Retention System
 ### v4.1 ✅ Age-Adaptive Brain Games Hub (2026-02)
 ### v4.2 ✅ Assessment & Question Bank v2 (2026-02)
+### v4.3 ✅ Child Dashboard + Report v2 (2026-02)
+- **Child Dashboard reordered** into 9 sections: Welcome → Level/XP/Coins/Streak stats → Today's Mission → Continue/Start Assessment → Featured Brain Games (5 gradient cards with Play Now) → Brain Skills Tests history → Achievements & Badges → Progress Overview → Daily Reward
+- **Brain Games featured prominently on dashboard** (5 age-appropriate colorful cards, 1-tap play)
+- **Report expanded to 12 sections**: Overall score, Category-wise Scores, Strengths, Areas for Improvement, Personalized Tips, Daily Practice Suggestions, Weekly Goals, Parent Guidance, Recommended Brain Games (3), Recommended Next Assessment (X days), XP/Levels/Badges/Progress, AI Insights
+- **Free vs Premium gating**: free users see summary (hero + KPIs + radar + category + strengths + growth + next-assessment + progress) with a locked upsell card; premium users see all detailed sections + Download PDF
+- **Backend PDF gating**: `GET /api/assessments/{id}/pdf` returns 403 if not premium & no credits
+- **PDF enhanced**: Strengths/Areas table, Personalized Tips, Daily Practice, Weekly Goals, Parent Guidance sections added before AI Insights
+- **New endpoint**: `GET /api/sessions/in-progress/{child_id}` for Continue Assessment
+- Tested end-to-end (backend 6/6 + full frontend flow both tiers) — iteration_7.json
+- **Fixed**: Critical bug where `/missions/{id}` returned an object shape and broke the whole Child Dashboard (silent redirect)
+
 - **Question bank expanded 4.5×**: 330 total questions (~82 per age group, meets 75–100 spec) across 4 age groups
 - **9 primary categories** per age group (9 each): Memory, Logical Reasoning, Pattern Recognition, Visual Skills, Attention & Focus, Processing Speed, Problem Solving, Math Reasoning, Language Skills + Creativity bonus
 - **Difficulty tiers relative-per-age-group**: ~27 Easy / 28 Medium / 27 Hard in each age group (auto-rebalanced at import time)

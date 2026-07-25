@@ -147,26 +147,30 @@ export default function ChildProfile() {
             </Card>
           ) : (
             <div className="grid sm:grid-cols-3 gap-3">
-              {missions.map((m, i) => (
-                <Card key={i} data-testid={`mission-card-${i}`} className="glass-card rounded-3xl border-0 p-5">
-                  <div className="flex items-start gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 grid place-items-center shrink-0">
-                      <Target className="w-5 h-5 text-white" strokeWidth={2.5} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-black text-sm">{m.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{m.description}</p>
-                      <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500" style={{ width: `${Math.min(100, (m.progress / m.target) * 100)}%` }} />
+              {missions.map((m, i) => {
+                const progress = m.current ?? m.progress ?? 0;
+                const target = m.target ?? 1;
+                const pct = Math.min(100, Math.round((progress / target) * 100));
+                return (
+                  <Card key={i} data-testid={`mission-card-${i}`} className="glass-card rounded-3xl border-0 p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 grid place-items-center shrink-0">
+                        <Target className="w-5 h-5 text-white" strokeWidth={2.5} />
                       </div>
-                      <div className="flex items-center justify-between mt-1 text-[11px] font-bold">
-                        <span className="text-muted-foreground">{m.progress}/{m.target}</span>
-                        <span className="text-emerald-600">+{m.xp} XP</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-sm">{m.title}</p>
+                        <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500" style={{ width: `${pct}%` }} />
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-[11px] font-bold">
+                          <span className="text-muted-foreground">{progress}/{target}</span>
+                          <span className="text-emerald-600">+{m.xp || 0} XP</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           )}
         </section>
