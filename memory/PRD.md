@@ -13,6 +13,22 @@ Premium SaaS for parent-supervised brain-skills assessments for kids 3–16. Edu
 ### v1 ✅ MVP · v2 ✅ Advanced engine · v3 ✅ SaaS · v3.1 ✅ INR Monetization
 ### v4 ✅ Engagement & Retention System
 ### v4.1 ✅ Age-Adaptive Brain Games Hub (2026-02)
+### v4.2 ✅ Assessment & Question Bank v2 (2026-02)
+- **Question bank expanded 4.5×**: 330 total questions (~82 per age group, meets 75–100 spec) across 4 age groups
+- **9 primary categories** per age group (9 each): Memory, Logical Reasoning, Pattern Recognition, Visual Skills, Attention & Focus, Processing Speed, Problem Solving, Math Reasoning, Language Skills + Creativity bonus
+- **Difficulty tiers relative-per-age-group**: ~27 Easy / 28 Medium / 27 Hard in each age group (auto-rebalanced at import time)
+- **SESSION_LENGTH = 20** for every age group
+- **Adaptive session builder**: reads last 5 assessments to build `seen_ids` (minimize repetition via weighted random picking) + avg of last 3 `overall_score` to tune difficulty mix
+  - avg ≥80% → 3E/8M/9H (push harder), 65-79% → 5E/9M/6H (sweet spot), 50-64% → 7E/9M/4H (balanced), <50% or first-attempt → 10E/7M/3H / 8E/8M/4H (build confidence)
+- **Category balance pass** ensures all 9 primary categories are represented in each 20-question session
+- **New endpoints**:
+  - `GET /api/assessment/bank-stats` → returns total counts, per-age-group category & difficulty breakdown (for admin + monitoring)
+  - `POST /api/sessions/start` response now includes `adaptive_meta` (avg_prior_score, prior_attempts, seen_questions, difficulty_mix)
+  - `GET /api/progress/{child_id}` now includes `total_attempts`, `avg_overall_score`, `best_overall_score`, `strengths`, `growth_areas`
+- **Frontend**: Assessment page shows color-coded difficulty label (Easy = green, Medium = amber, Hard = rose) at `data-testid=assessment-question-meta`
+- **Design ready to scale to 200 questions/age group** with zero schema changes — bank is a Python module list; add rows and the rebalance step handles the rest
+- Tested end-to-end (backend 8/8, frontend flow verified) — iteration_6.json
+
 - Backend catalog now serves **5 curated games per age group (20 total)** with `difficulty_label` (Easy / Medium / Hard) tiers
   - Ages 3–5: Color Match · Baby Memory · Shape Sort · Copy Me · Next Color
   - Ages 6–8: Reaction Tap · Memory Match · Math Sprint · Rhyme Time · Simon Says
