@@ -18,6 +18,29 @@ Premium SaaS for parent-supervised brain-skills assessments for kids 3–16. Edu
 ### v4.4 ✅ Auth v2 — Google Sign-In + Email Verification + Password Reset (2026-02)
 ### v4.5 ✅ Razorpay Payments + Subscription + Premium Access (2026-02)
 ### v4.6 ✅ Phonics Fun — letter-sounds learning module (2026-02)
+### v4.6.1 ✅ Phonics upgrade — real phonics sounds + full mic validation (2026-02)
+### v4.6.2 ✅ Letter Journey — full A–Z learning flow with 5 activities per letter (2026-02-27)
+- **Complete data for all 26 letters** in `/app/frontend/src/data/letterLessons.js`: upper/lower case, correct English phonics IPA + TTS phrase, 4 vocabulary emoji cards, target word for Build activity, listening distractors, accepted spoken tokens. No placeholder content anywhere.
+- **Reusable `LetterLesson.jsx`** component runs a 5-step lesson + completion for any letter:
+  1. Meet the Letter — Aa tiles, IPA, "as in <word>", Play Sound, 4 vocab cards, Ready to Play
+  2. Listening Game — Which letter makes this sound? Play + 3 letter choices, correct/wrong banners
+  3. Word Recognition — Which word starts with this sound? Play Word + 3 emoji cards
+  4. Build The Word — picture prompt + shuffled letter tiles → slots + Check My Word / Reset
+  5. Speaking Activity — big letter tile + microphone (webkitSpeechRecognition), unlimited retries, live transcript, Excellent/Try Again feedback, Star award
+  6. Completion — Congratulations badge + stars + Continue To Next Letter (auto-unlocks next)
+- **Alphabet Map (Letter Journey tab)**: Only A unlocked initially. Completed letters show green with check icon, current letter pulses rose, locked letters show lock icon and are disabled. Progress % + badges card + legend chip. Backend badge is persisted through `/api/phonics/badge` — next letter derived from set of earned badges.
+- Preserved Canva aesthetic (rounded-2rem panels, pastel palette, LiftButton 3D pills, animate-pop / animate-shake) — no existing pages modified.
+- Backend-ready for AI pronunciation assessment + progress tracking + gamification through existing `/api/phonics/*` endpoints.
+
+
+- **Alphabet names removed everywhere**: every TTS call now speaks the phonics sound + example word (e.g., "sss, sun" not "S"). New `PHONICS` map covers all 26 letters with IPA + word + accepted spoken tokens.
+- **Full pronunciation validation** in Speak & Say: real-time transcript display, `transcriptMatches()` accepts the target word, sound approximation, or letter tokens; success → praise banner ("Excellent!"/"Great Job!"/"Correct!") + green ring pulse + Web Audio success chime + auto-enabled Next button; failure → amber Try Again banner + shake animation + soft failure chime; unlimited retries.
+- **Live recognized speech box** ("You said …") always displayed after listening.
+- **Web Audio API chimes** (major triad on success, descending on fail) — no external assets.
+- **Sound Game** now announces "phonics sound" in copy and plays the sound-word phrase.
+- **Letter Journey** now shows IPA + example word beneath the current letter tile.
+- Design, layout, spacing, colors, buttons all preserved exactly as in Canva.
+
 - New standalone page at `/dashboard/phonics/:childId` with 5 tabs matching the Canva design
   1. **Home** — Learn·Play·Smile hero + Play Sound Game / Practise Speaking CTAs
   2. **Sound Game** — big blue speaker button (Web Speech API), 3 letter choices per round
