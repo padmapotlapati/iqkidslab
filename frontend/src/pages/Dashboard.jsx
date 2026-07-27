@@ -109,6 +109,33 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Phonics Fun CTA — visible from the Home Dashboard */}
+        {children.length > 0 && (
+          <div className="mt-8 rounded-3xl p-6 bg-gradient-to-r from-yellow-300 via-orange-300 to-pink-300 text-slate-900 lift-shadow" data-testid="phonics-dashboard-cta">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-3xl bg-white/80 grid place-items-center backdrop-blur shadow-inner">
+                  <span className="font-display font-black text-orange-500 text-2xl leading-none">Aa</span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Learn • Play • Smile</p>
+                  <p className="font-display font-black text-xl leading-tight">Phonics Fun!</p>
+                  <p className="text-xs opacity-80 mt-0.5">Listen, tap, and speak your ABC sounds — collect stars &amp; badges.</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {children.slice(0, 3).map(c => (
+                  <Link key={c.id} to={`/dashboard/phonics/${c.id}`}>
+                    <Button className="pill-btn bg-white text-orange-700 hover:bg-white/90 font-black" data-testid={`phonics-open-${c.id}`}>
+                      Open for {c.name}
+                    </Button>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Daily Rewards CTA */}
         {children.length > 0 && (
           <div className="mt-8 rounded-3xl p-6 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white lift-shadow flex flex-col sm:flex-row items-center justify-between gap-4" data-testid="rewards-cta-banner">
