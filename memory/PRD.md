@@ -17,6 +17,19 @@ Premium SaaS for parent-supervised brain-skills assessments for kids 3–16. Edu
 ### v4.3 ✅ Child Dashboard + Report v2 (2026-02)
 ### v4.4 ✅ Auth v2 — Google Sign-In + Email Verification + Password Reset (2026-02)
 ### v4.5 ✅ Razorpay Payments + Subscription + Premium Access (2026-02)
+### v4.6 ✅ Phonics Fun — letter-sounds learning module (2026-02)
+- New standalone page at `/dashboard/phonics/:childId` with 5 tabs matching the Canva design
+  1. **Home** — Learn·Play·Smile hero + Play Sound Game / Practise Speaking CTAs
+  2. **Sound Game** — big blue speaker button (Web Speech API), 3 letter choices per round
+  3. **Speak & Say** — big letter tile + rose mic button (webkitSpeechRecognition when available, optimistic reward fallback)
+  4. **Letter Journey** — 0/26 badges, A–Z alphabet path with unlock progression
+  5. **My Stars** — celebration screen with Correct answers + Stars collected + Play Again / Speak More
+- Header pill bar with live star counter (0/10) + Share button
+- Fully additive: new `PhonicsFun.jsx` page, new `/api/phonics/*` router, one non-breaking entry card added to the Child Dashboard between Featured Games and Brain Skills Tests
+- Backend: `phonics_router.py` — `GET /state/{child_id}`, `POST /answer`, `POST /badge`, `POST /reset/{child_id}` using `db.phonics_progress` (per-child stars, badges, attempts). Ties into existing XP/coins (child +5 XP, parent +5 XP +1 coin per correct answer)
+- No design or copy on any existing pages was modified
+- Backend curl-verified end-to-end (state → answer → badge → reset)
+
 - **Replaced Stripe** with Razorpay checkout end-to-end (INR-only, one Razorpay module, keys in `.env`)
 - **3 clean plans** on `/pricing`:
   - Free: 1 assessment / summary report only

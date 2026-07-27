@@ -263,6 +263,28 @@ export default function ChildProfile() {
           )}
         </section>
 
+        {/* ===== 5b. Phonics Fun (letter-sounds learning) ===== */}
+        <section className="mt-8" data-testid="section-phonics">
+          <Card
+            onClick={() => navigate(`/dashboard/phonics/${childId}`)}
+            data-testid="phonics-entry-card"
+            className="relative overflow-hidden rounded-3xl border-0 p-6 lift-shadow bg-gradient-to-r from-yellow-300 via-orange-300 to-pink-300 text-slate-900 hover:-translate-y-1 transition-transform cursor-pointer"
+          >
+            <div className="floating-blob bg-white/30 w-40 h-40 -top-8 -right-8"></div>
+            <div className="relative flex items-center gap-4">
+              <div className="w-14 h-14 rounded-3xl bg-white/70 grid place-items-center backdrop-blur shadow-inner shrink-0">
+                <span className="font-display font-black text-orange-500 text-2xl leading-none">Aa</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-black uppercase tracking-widest">Learn • Play • Smile</p>
+                <p className="font-display font-black text-xl leading-tight">Phonics Fun!</p>
+                <p className="text-xs mt-0.5 opacity-80">Listen, tap, and speak your ABC sounds — collect stars!</p>
+              </div>
+              <ChevronRight className="w-6 h-6 shrink-0" />
+            </div>
+          </Card>
+        </section>
+
         {/* ===== 6. Brain Skills Tests (assessment history) ===== */}
         <section className="mt-8" data-testid="section-brain-skills-tests">
           <h2 className="text-xl sm:text-2xl font-display font-black flex items-center gap-2 mb-3">

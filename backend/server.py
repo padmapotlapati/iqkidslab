@@ -1022,6 +1022,10 @@ app.include_router(build_auth_v2_router(db, get_current_user, push_notification)
 from razorpay_router import build_razorpay_router
 app.include_router(build_razorpay_router(db, get_current_user, push_notification))
 
+# Phonics Fun — kids' letter-sound learning module
+from phonics_router import build_phonics_router
+app.include_router(build_phonics_router(db, get_current_user))
+
 # Part 3 SaaS routes (admin, payments, blog, analytics, coupons)
 app.include_router(build_saas_router(db, require_admin, get_current_user, push_notification))
 
